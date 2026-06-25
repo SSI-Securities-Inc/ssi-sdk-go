@@ -26,16 +26,16 @@ func NewService(rest *transport.RestClient, privateKey string) *Service {
 }
 
 func (s *Service) placeOrder(accountNo, symbol string, side OrderSide, quantity int, price float64, orderType OrderType) (*PlaceOrderResponse, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(string(side), "Order side must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(string(side), "side"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(string(orderType), "Order type must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(string(orderType), "orderType"); err != nil {
 		return nil, err
 	}
 
@@ -56,9 +56,9 @@ func (s *Service) placeOrder(accountNo, symbol string, side OrderSide, quantity 
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign order request: %w", err)
 	}
-	s.rest.SetSignatureHeader(sig)
 
-	data, err := s.rest.Post(epTradingOrder, nil, []byte(orderJSON), s.rest.GetHeaders())
+	headers := map[string]string{transport.HeaderSignature: sig}
+	data, err := s.rest.Post(epTradingOrder, nil, []byte(orderJSON), headers)
 	if err != nil {
 		tradingLog.Error("Error placing order: %v", err)
 		return nil, err
@@ -68,14 +68,14 @@ func (s *Service) placeOrder(accountNo, symbol string, side OrderSide, quantity 
 }
 
 func (s *Service) PlaceOrder(accountNo, symbol string, side OrderSide, quantity int, price float64, orderType OrderType) (*PlaceOrderResponse, error) {
-	if err := ssi.RequireNonNegative(price, "Price must be positive"); err != nil {
+	if err := ssi.RequireNonNegative(price, "price"); err != nil {
 		return nil, err
 	}
 	return s.placeOrder(accountNo, symbol, side, quantity, price, orderType)
 }
 
 func (s *Service) PlaceLimitOrder(accountNo, symbol string, side OrderSide, quantity int, price float64) (*PlaceOrderResponse, error) {
-	if err := ssi.RequirePositive(price, "Price must be positive"); err != nil {
+	if err := ssi.RequirePositive(price, "price"); err != nil {
 		return nil, err
 	}
 	return s.PlaceOrder(accountNo, symbol, side, quantity, price, OrderTypeLO)
@@ -94,7 +94,7 @@ func (s *Service) PlaceATCOrder(accountNo, symbol string, side OrderSide, quanti
 }
 
 func (s *Service) modifyOrder(accountNo string, orderID, clientRequestID string, price *float64, quantity *int) (*ModifyOrderResponse, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
 
@@ -114,9 +114,9 @@ func (s *Service) modifyOrder(accountNo string, orderID, clientRequestID string,
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign modify request: %w", err)
 	}
-	s.rest.SetSignatureHeader(sig)
 
-	data, err := s.rest.Put(epTradingOrder, nil, []byte(modifyJSON), s.rest.GetHeaders())
+	headers := map[string]string{transport.HeaderSignature: sig}
+	data, err := s.rest.Put(epTradingOrder, nil, []byte(modifyJSON), headers)
 	if err != nil {
 		tradingLog.Error("Error modifying order: %v", err)
 		return nil, err
@@ -142,7 +142,7 @@ func (s *Service) ModifyOrderQuantityByOrderID(accountNo, orderID string, quanti
 }
 
 func (s *Service) cancelOrder(accountNo, orderID, clientRequestID string) (*CancelOrderResponse, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
 
@@ -160,9 +160,9 @@ func (s *Service) cancelOrder(accountNo, orderID, clientRequestID string) (*Canc
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign cancel request: %w", err)
 	}
-	s.rest.SetSignatureHeader(sig)
 
-	data, err := s.rest.Delete(epTradingOrder, nil, []byte(cancelJSON), s.rest.GetHeaders())
+	headers := map[string]string{transport.HeaderSignature: sig}
+	data, err := s.rest.Delete(epTradingOrder, nil, []byte(cancelJSON), headers)
 	if err != nil {
 		tradingLog.Error("Error canceling order: %v", err)
 		return nil, err
@@ -172,14 +172,14 @@ func (s *Service) cancelOrder(accountNo, orderID, clientRequestID string) (*Canc
 }
 
 func (s *Service) CancelOrder(accountNo, clientRequestID string) (*CancelOrderResponse, error) {
-	if err := ssi.RequireNonEmpty(clientRequestID, "Client request ID must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(clientRequestID, "clientRequestId"); err != nil {
 		return nil, err
 	}
 	return s.cancelOrder(accountNo, "", clientRequestID)
 }
 
 func (s *Service) CancelOrderByOrderID(accountNo, orderID string) (*CancelOrderResponse, error) {
-	if err := ssi.RequireNonEmpty(orderID, "Order ID must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(orderID, "orderId"); err != nil {
 		return nil, err
 	}
 	return s.cancelOrder(accountNo, orderID, "")
@@ -194,10 +194,10 @@ func (s *Service) GetMaxBuySellAtMarketPrice(accountNo, symbol string) (*MaxBuyS
 }
 
 func (s *Service) getMaxBuySell(accountNo, symbol string, price *float64) (*MaxBuySellResponse, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
 
@@ -209,7 +209,7 @@ func (s *Service) getMaxBuySell(accountNo, symbol string, price *float64) (*MaxB
 		req.Price = *price
 	}
 
-	data, err := s.rest.Get(epTradingMaxBuySell, req.ToMap(), s.rest.GetHeaders())
+	data, err := s.rest.Get(epTradingMaxBuySell, req.ToMap(), nil)
 	if err != nil {
 		tradingLog.Error("Error getting max buy/sell: %v", err)
 		return nil, err

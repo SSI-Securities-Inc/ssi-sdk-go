@@ -39,7 +39,7 @@ func ToFloat64(v interface{}) float64 {
 		return float64(val)
 	case string:
 		var f float64
-		fmt.Sscanf(val, "%f", &f)
+		_, _ = fmt.Sscanf(val, "%f", &f)
 		return f
 	default:
 		return 0
@@ -61,7 +61,7 @@ func ToInt(v interface{}) int {
 		return int(val)
 	case string:
 		var i int
-		fmt.Sscanf(val, "%d", &i)
+		_, _ = fmt.Sscanf(val, "%d", &i)
 		return i
 	default:
 		return 0
@@ -83,7 +83,7 @@ func ToInt64(v interface{}) int64 {
 		return val
 	case string:
 		var i int64
-		fmt.Sscanf(val, "%d", &i)
+		_, _ = fmt.Sscanf(val, "%d", &i)
 		return i
 	default:
 		return 0
@@ -116,7 +116,7 @@ func GenerateRequestID() string {
 	result := make([]byte, 0, idSize)
 	for {
 		randomBytes := make([]byte, step)
-		rand.Read(randomBytes)
+		_, _ = rand.Read(randomBytes)
 		for _, b := range randomBytes {
 			randomByte := int(b) & mask
 			if randomByte < alphabetLen {

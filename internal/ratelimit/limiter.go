@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-const sleepInterval = 2
-
 // Limiter is a token-bucket rate limiter (thread-safe).
 type Limiter struct {
 	max    int
@@ -39,7 +37,9 @@ func (r *Limiter) Acquire() {
 			r.mu.Unlock()
 			return
 		}
+		deficit := 1.0 - r.tokens
+		waitSeconds := deficit / float64(r.max)
 		r.mu.Unlock()
-		time.Sleep(time.Duration(sleepInterval) * time.Second)
+		time.Sleep(time.Duration(waitSeconds * float64(time.Second)))
 	}
 }

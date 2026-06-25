@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"fmt"
 	"time"
 
 	ssi "github.com/SSI-Securities-Inc/ssi-sdk-go/v3"
@@ -160,6 +159,23 @@ func (tm *TokenManager) RequestOTP() (map[string]interface{}, error) {
 	return data, nil
 }
 
+func (tm *TokenManager) EnsureAuthenticated(otp string) (string, error) {
+	if tm.token == nil || tm.IsTokenExpired() {
+		if tm.HasRefreshToken() {
+			if _, err := tm.Refresh(); err != nil {
+				return "", err
+			}
+		} else if otp != "" {
+			if _, err := tm.Authenticate(otp); err != nil {
+				return "", err
+			}
+		} else {
+			return "", ssi.NewAuthenticationError("OTP is required to authenticate — no refresh token available", "", 0, nil)
+		}
+	}
+	return tm.AccessToken(), nil
+}
+
 func extractPayload(data map[string]interface{}) map[string]interface{} {
 	if data == nil {
 		return nil
@@ -173,7 +189,9 @@ func extractPayload(data map[string]interface{}) map[string]interface{} {
 	return nil
 }
 
-// Deprecated: ConnectRestOnly is deprecated, use Authenticate instead.
+// ConnectRestOnly is a no-op retained for backward compatibility.
+//
+// Deprecated: Use Authenticate("") for market-data-only (no-OTP) access.
 func (tm *TokenManager) ConnectRestOnly() {
-	fmt.Println("WARNING: connect_rest_only is deprecated, use Authenticate(otp) instead")
+	authLog.Error("ConnectRestOnly is deprecated, use Authenticate(otp) instead")
 }

@@ -21,7 +21,6 @@ type Config struct {
 	MaxRetries         int
 	RetryDelay         float64
 	RateLimitPerSecond int
-	CacheTTL           int
 	LogLevel           string
 	Proxy              string
 }

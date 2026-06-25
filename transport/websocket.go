@@ -86,7 +86,7 @@ func (c *WebSocketClient) Connect() error {
 	delay := c.config.RetryDelay
 	var lastErr error
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := 0; attempt <= maxRetries; attempt++ {
 		conn, _, err := dialer.Dial(wsURL, header)
 		if err == nil {
 			c.mu.Lock()
@@ -100,16 +100,16 @@ func (c *WebSocketClient) Connect() error {
 			return nil
 		}
 		lastErr = err
-		if attempt < maxRetries-1 {
+		if attempt < maxRetries {
 			wait := delay * math.Pow(2, float64(attempt))
 			wsLog.Error("WebSocket connect attempt %d/%d failed: %v. Retrying in %.1fs",
-				attempt+1, maxRetries, err, wait)
+				attempt+1, maxRetries+1, err, wait)
 			time.Sleep(time.Duration(wait * float64(time.Second)))
 		}
 	}
 
 	return ssi.NewWebSocketError(
-		fmt.Sprintf("Failed to connect to %s after %d attempts: %v", wsURL, maxRetries, lastErr),
+		fmt.Sprintf("Failed to connect to %s after %d attempts: %v", wsURL, maxRetries+1, lastErr),
 	)
 }
 
@@ -141,15 +141,11 @@ func (c *WebSocketClient) On(channel string, handler MessageHandler) {
 	c.handlers[channel] = []MessageHandler{handler}
 }
 
-func (c *WebSocketClient) Off(channel string, handler MessageHandler) {
+func (c *WebSocketClient) Off(channel string, _ MessageHandler) {
 	c.handlerMu.Lock()
 	defer c.handlerMu.Unlock()
-	if handler == nil {
-		delete(c.handlers, channel)
-		return
-	}
-	handlers := c.handlers[channel]
-	c.handlers[channel] = handlers[:0]
+	// Only one handler is registered per channel, so any Off clears it.
+	delete(c.handlers, channel)
 }
 
 func (c *WebSocketClient) Send(data map[string]interface{}) error {
@@ -196,7 +192,10 @@ func (c *WebSocketClient) listen() {
 
 		_, rawMessage, err := conn.ReadMessage()
 		if err != nil {
-			if !c.running {
+			c.mu.RLock()
+			stillRunning := c.running
+			c.mu.RUnlock()
+			if !stillRunning {
 				return
 			}
 			wsLog.Error("WebSocket read error: %v", err)

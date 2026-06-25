@@ -49,7 +49,7 @@ func (s *Service) getBalance(accountNo string) (*AccountBalance, error) {
 }
 
 func (s *Service) GetEquityBalance(accountNo string) (*EquityAccountBalance, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
 	balance, err := s.getBalance(accountNo)
@@ -60,7 +60,7 @@ func (s *Service) GetEquityBalance(accountNo string) (*EquityAccountBalance, err
 }
 
 func (s *Service) GetDerivativeBalance(accountNo string) (*DerivativeAccountBalance, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
 	balance, err := s.getBalance(accountNo)
@@ -88,7 +88,7 @@ func (s *Service) getOrderBook(accountNo, fromDate, toDate string) (*OrderBook, 
 }
 
 func (s *Service) GetTodayOrders(accountNo string) ([]Order, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
 	today := util.TodayDateStr()
@@ -100,13 +100,13 @@ func (s *Service) GetTodayOrders(accountNo string) ([]Order, error) {
 }
 
 func (s *Service) GetHistoricalOrders(accountNo, fromDate, toDate string) ([]Order, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(fromDate, "From date (yyyy/mm/dd) must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(fromDate, "fromDate"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(toDate, "To date (yyyy/mm/dd) must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(toDate, "toDate"); err != nil {
 		return nil, err
 	}
 	ob, err := s.getOrderBook(accountNo, fromDate, toDate)
@@ -131,7 +131,7 @@ func (s *Service) getPositions(clientID, accountNo string) (*Position, error) {
 }
 
 func (s *Service) GetEquityPositions(accountNo string) ([]EquityPosition, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
 	position, err := s.getPositions(s.clientID, accountNo)
@@ -142,7 +142,7 @@ func (s *Service) GetEquityPositions(accountNo string) ([]EquityPosition, error)
 }
 
 func (s *Service) GetDerivativePositions(accountNo string) (*AllDerivativePosition, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
 	position, err := s.getPositions(s.clientID, accountNo)
@@ -153,7 +153,7 @@ func (s *Service) GetDerivativePositions(accountNo string) (*AllDerivativePositi
 }
 
 func (s *Service) GetOpenDerivativePositions(accountNo string) ([]DerivativePosition, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
 	position, err := s.getPositions(s.clientID, accountNo)
@@ -167,7 +167,7 @@ func (s *Service) GetOpenDerivativePositions(accountNo string) ([]DerivativePosi
 }
 
 func (s *Service) GetClosedDerivativePositions(accountNo string) ([]DerivativePosition, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
 	position, err := s.getPositions(s.clientID, accountNo)
@@ -192,7 +192,7 @@ func (s *Service) getPPMMR(accountNo string) (*PPMMR, error) {
 }
 
 func (s *Service) GetEquityPPMMR(accountNo string) (*EquityPPMMR, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
 	ppmmr, err := s.getPPMMR(accountNo)
@@ -203,7 +203,7 @@ func (s *Service) GetEquityPPMMR(accountNo string) (*EquityPPMMR, error) {
 }
 
 func (s *Service) GetDerivativePPMMR(accountNo string) (*DerivativePPMMR, error) {
-	if err := ssi.RequireNonEmpty(accountNo, "Account number must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(accountNo, "accountNo"); err != nil {
 		return nil, err
 	}
 	ppmmr, err := s.getPPMMR(accountNo)

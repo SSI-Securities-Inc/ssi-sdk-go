@@ -52,139 +52,148 @@ func (s *Service) getOHLC(symbol, fromDate, toDate string, timeframe Timeframe, 
 }
 
 func (s *Service) GetOHLC1Minute(symbol string) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, util.BeginningOfDay(), util.EndOfDay(), TimeframeMinute1, defaultPage, defaultSize)
 }
 
+func (s *Service) DownloadOHLC1Minute(symbol string) (map[string]interface{}, error) {
+	return nil, fmt.Errorf("OHLC download is not implemented yet")
+}
+
+func (s *Service) DownloadOHLC1Day(symbol string) (map[string]interface{}, error) {
+	return nil, fmt.Errorf("OHLC download is not implemented yet")
+}
+
+
 func (s *Service) GetOHLC1MinuteHistorical(symbol, fromDate, toDate string, page, size int) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(fromDate, "From date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(fromDate, "fromDate"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(toDate, "To date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(toDate, "toDate"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, fromDate, toDate, TimeframeMinute1, page, size)
 }
 
 func (s *Service) GetOHLC3Minute(symbol string) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, util.BeginningOfDay(), util.EndOfDay(), TimeframeMinute3, defaultPage, defaultSize)
 }
 
 func (s *Service) GetOHLC3MinuteHistorical(symbol, fromDate, toDate string, page, size int) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(fromDate, "From date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(fromDate, "fromDate"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(toDate, "To date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(toDate, "toDate"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, fromDate, toDate, TimeframeMinute3, page, size)
 }
 
 func (s *Service) GetOHLC5Minute(symbol string) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, util.BeginningOfDay(), util.EndOfDay(), TimeframeMinute5, defaultPage, defaultSize)
 }
 
 func (s *Service) GetOHLC5MinuteHistorical(symbol, fromDate, toDate string, page, size int) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(fromDate, "From date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(fromDate, "fromDate"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(toDate, "To date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(toDate, "toDate"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, fromDate, toDate, TimeframeMinute5, page, size)
 }
 
 func (s *Service) GetOHLC15Minute(symbol string) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, util.BeginningOfDay(), util.EndOfDay(), TimeframeMinute15, defaultPage, defaultSize)
 }
 
 func (s *Service) GetOHLC15MinuteHistorical(symbol, fromDate, toDate string, page, size int) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(fromDate, "From date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(fromDate, "fromDate"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(toDate, "To date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(toDate, "toDate"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, fromDate, toDate, TimeframeMinute15, page, size)
 }
 
 func (s *Service) GetOHLC1Hour(symbol string) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, util.BeginningOfDay(), util.EndOfDay(), TimeframeHour1, defaultPage, defaultSize)
 }
 
 func (s *Service) GetOHLC1HourHistorical(symbol, fromDate, toDate string, page, size int) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(fromDate, "From date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(fromDate, "fromDate"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(toDate, "To date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(toDate, "toDate"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, fromDate, toDate, TimeframeHour1, page, size)
 }
 
 func (s *Service) GetOHLC1DayHistorical(symbol, fromDate, toDate string, page, size int) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(fromDate, "From date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(fromDate, "fromDate"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(toDate, "To date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(toDate, "toDate"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, fromDate, toDate, TimeframeDay1, page, size)
 }
 
 func (s *Service) GetOHLC1WeekHistorical(symbol, fromDate, toDate string, page, size int) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(fromDate, "From date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(fromDate, "fromDate"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(toDate, "To date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(toDate, "toDate"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, fromDate, toDate, TimeframeWeek1, page, size)
 }
 
 func (s *Service) GetOHLC1MonthHistorical(symbol, fromDate, toDate string, page, size int) ([]OHLCData, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(fromDate, "From date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(fromDate, "fromDate"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(toDate, "To date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(toDate, "toDate"); err != nil {
 		return nil, err
 	}
 	return s.getOHLC(symbol, fromDate, toDate, TimeframeMonth1, page, size)
@@ -212,7 +221,7 @@ func (s *Service) GetIndexes() ([]MarketIndexes, error) {
 }
 
 func (s *Service) GetIndexesByBoard(board Board) ([]MarketIndexes, error) {
-	if err := ssi.RequireNonEmpty(string(board), "Board must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(string(board), "board"); err != nil {
 		return nil, err
 	}
 	return s.getIndexes(&board)
@@ -241,7 +250,7 @@ func (s *Service) getIndexSummary(index string, board *Board, tradingDate string
 }
 
 func (s *Service) GetIndexSummary(index string) (*MarketIndexSummary, error) {
-	if err := ssi.RequireNonEmpty(index, "Index code must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(index, "index"); err != nil {
 		return nil, err
 	}
 	summaries, err := s.getIndexSummary(index, nil, "")
@@ -255,10 +264,10 @@ func (s *Service) GetIndexSummary(index string) (*MarketIndexSummary, error) {
 }
 
 func (s *Service) GetIndexSummaryHistorical(index, tradingDate string) (*MarketIndexSummary, error) {
-	if err := ssi.RequireNonEmpty(index, "Index code must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(index, "index"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(tradingDate, "Trading date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(tradingDate, "tradingDate"); err != nil {
 		return nil, err
 	}
 	summaries, err := s.getIndexSummary(index, nil, tradingDate)
@@ -272,7 +281,7 @@ func (s *Service) GetIndexSummaryHistorical(index, tradingDate string) (*MarketI
 }
 
 func (s *Service) GetBoardSummary(board Board) (*MarketIndexSummary, error) {
-	if err := ssi.RequireNonEmpty(string(board), "Board must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(string(board), "board"); err != nil {
 		return nil, err
 	}
 	summaries, err := s.getIndexSummary("", &board, "")
@@ -286,10 +295,10 @@ func (s *Service) GetBoardSummary(board Board) (*MarketIndexSummary, error) {
 }
 
 func (s *Service) GetBoardSummaryHistorical(board Board, tradingDate string) (*MarketIndexSummary, error) {
-	if err := ssi.RequireNonEmpty(string(board), "Board must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(string(board), "board"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(tradingDate, "Trading date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(tradingDate, "tradingDate"); err != nil {
 		return nil, err
 	}
 	summaries, err := s.getIndexSummary("", &board, tradingDate)
@@ -325,7 +334,7 @@ func (s *Service) getSecuritiesInfo(index string, board *Board, symbol string) (
 }
 
 func (s *Service) GetSecuritiesInfo(symbol string) (*SecuritiesInfo, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
 	infos, err := s.getSecuritiesInfo("", nil, symbol)
@@ -339,7 +348,7 @@ func (s *Service) GetSecuritiesInfo(symbol string) (*SecuritiesInfo, error) {
 }
 
 func (s *Service) GetSecuritiesInfoByIndex(index string) ([]SecuritiesInfo, error) {
-	if err := ssi.RequireNonEmpty(index, "Index code must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(index, "index"); err != nil {
 		return nil, err
 	}
 	infos, err := s.getSecuritiesInfo(index, nil, "")
@@ -353,7 +362,7 @@ func (s *Service) GetSecuritiesInfoByIndex(index string) ([]SecuritiesInfo, erro
 }
 
 func (s *Service) GetSecuritiesInfoByBoard(board Board) ([]SecuritiesInfo, error) {
-	if err := ssi.RequireNonEmpty(string(board), "Board must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(string(board), "board"); err != nil {
 		return nil, err
 	}
 	infos, err := s.getSecuritiesInfo("", &board, "")
@@ -389,7 +398,7 @@ func (s *Service) getSecuritiesSummary(fromDate, toDate, symbol, index string, p
 }
 
 func (s *Service) GetSecuritiesSummary(symbol string) ([]SecuritiesSummary, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
 	today := util.TodayDateStr()
@@ -397,20 +406,20 @@ func (s *Service) GetSecuritiesSummary(symbol string) ([]SecuritiesSummary, erro
 }
 
 func (s *Service) GetSecuritiesSummaryHistorical(symbol, fromDate, toDate string) ([]SecuritiesSummary, error) {
-	if err := ssi.RequireNonEmpty(symbol, "Symbol must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(fromDate, "From date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(fromDate, "fromDate"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(toDate, "To date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(toDate, "toDate"); err != nil {
 		return nil, err
 	}
 	return s.getSecuritiesSummary(fromDate, toDate, symbol, "", defaultPage, defaultSize)
 }
 
 func (s *Service) GetSecuritiesSummaryByIndex(index string) ([]SecuritiesSummary, error) {
-	if err := ssi.RequireNonEmpty(index, "Index code must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(index, "index"); err != nil {
 		return nil, err
 	}
 	today := util.TodayDateStr()
@@ -418,13 +427,13 @@ func (s *Service) GetSecuritiesSummaryByIndex(index string) ([]SecuritiesSummary
 }
 
 func (s *Service) GetSecuritiesSummaryByIndexHistorical(index, fromDate, toDate string) ([]SecuritiesSummary, error) {
-	if err := ssi.RequireNonEmpty(index, "Index code must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(index, "index"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(fromDate, "From date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(fromDate, "fromDate"); err != nil {
 		return nil, err
 	}
-	if err := ssi.RequireNonEmpty(toDate, "To date must be provided"); err != nil {
+	if err := ssi.RequireNonEmpty(toDate, "toDate"); err != nil {
 		return nil, err
 	}
 	return s.getSecuritiesSummary(fromDate, toDate, "", index, defaultPage, defaultSize)

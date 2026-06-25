@@ -94,6 +94,11 @@ func (a *Auth) RequestOTP() (map[string]interface{}, error) {
 	return a.TokenManager.RequestOTP()
 }
 
+// EnsureAuthenticated ensures a valid access token is available, renewing if needed.
+func (a *Auth) EnsureAuthenticated(otp string) (string, error) {
+	return a.TokenManager.EnsureAuthenticated(otp)
+}
+
 // AccessToken returns the current bearer token string, or "" if not authenticated.
 func (a *Auth) AccessToken() string {
 	return a.TokenManager.AccessToken()
@@ -195,6 +200,7 @@ func (s *Stream) Connect() error {
 
 // Disconnect closes the WebSocket connection and releases resources.
 func (s *Stream) Disconnect() {
+	s.Streaming.StopPingLoop()
 	s.wsClient.Disconnect()
 }
 
