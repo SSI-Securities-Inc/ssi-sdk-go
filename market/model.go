@@ -277,7 +277,7 @@ func SecuritiesInfoFromList(data []interface{}) []SecuritiesInfo {
 			CWUnderlyingSymbol: util.ToStr(m["cwUnderlyingSymbol"]),
 			CWExercisePrice:    util.ToFloat64(m["cwExercisePrice"]),
 			CWExecutionRatio:   util.ToFloat64(m["cwExecutionRatio"]),
-			ListedShares:       util.ToInt(m["listedShares"]),
+			ListedShares:       util.ToInt(m["listedShare"]),
 			ICBCode:            util.ToStr(m["icbCode"]),
 			ICBName:            util.ToStr(m["icbName"]),
 			IIndex:             util.ToFloat64(m["iIndex"]),

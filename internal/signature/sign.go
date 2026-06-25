@@ -58,7 +58,11 @@ func Sign(data, privateKey string) (string, error) {
 	}
 
 	hash := sha256.Sum256([]byte(data))
-	digestInfo := append(sha256DERPrefix, hash[:]...)
+	// Build a fresh slice — appending onto the package-level sha256DERPrefix
+	// would alias/mutate its shared backing array.
+	digestInfo := make([]byte, 0, len(sha256DERPrefix)+len(hash))
+	digestInfo = append(digestInfo, sha256DERPrefix...)
+	digestInfo = append(digestInfo, hash[:]...)
 
 	keyLen := (n.BitLen() + 7) / 8
 	padLen := keyLen - len(digestInfo) - 3

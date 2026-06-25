@@ -2,6 +2,7 @@ package stream
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/SSI-Securities-Inc/ssi-sdk-go/v3/internal/logger"
@@ -18,6 +19,8 @@ type Service struct {
 	onDataCallback      func(interface{})
 	onTradingCallback   func(interface{})
 	onHeartbeatCallback func(*HeartbeatMessage)
+	pingMu              sync.Mutex
+	pingStop            chan struct{}
 }
 
 func NewService(ws *transport.WebSocketClient) *Service {
@@ -81,12 +84,55 @@ func (s *Service) subscribe(req *RequestMessage, onResponse transport.MessageHan
 	return s.ws.Send(req.ToMap())
 }
 
-func (s *Service) Ping() error {
-	streamLog.Debug("Sending ping to WebSocket server")
-	return s.subscribe(&RequestMessage{
-		Method:  StreamingMethodPingPong,
-		Channel: StreamingChannelHeartbeat,
-	}, nil)
+// StopPingLoop stops any active background ping thread.
+func (s *Service) StopPingLoop() {
+	s.pingMu.Lock()
+	defer s.pingMu.Unlock()
+	if s.pingStop != nil {
+		close(s.pingStop)
+		s.pingStop = nil
+	}
+}
+
+// Ping sends a single ping, or sets up a periodic ping loop if interval is non-nil.
+// Any previous ping loop is stopped before starting a new one.
+func (s *Service) Ping(onResponse transport.MessageHandler, interval *time.Duration) error {
+	s.StopPingLoop()
+
+	sendOnce := func() error {
+		streamLog.Debug("Sending ping to WebSocket server")
+		return s.subscribe(&RequestMessage{
+			Method:  StreamingMethodPingPong,
+			Channel: StreamingChannelHeartbeat,
+		}, onResponse)
+	}
+
+	if interval == nil {
+		return sendOnce()
+	}
+
+	s.pingMu.Lock()
+	s.pingStop = make(chan struct{})
+	stopChan := s.pingStop
+	s.pingMu.Unlock()
+
+	go func() {
+		ticker := time.NewTicker(*interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if err := sendOnce(); err != nil {
+					streamLog.Error("Failed to send periodic ping: %v", err)
+				}
+			case <-stopChan:
+				return
+			}
+		}
+	}()
+
+	streamLog.Debug("Ping loop started")
+	return nil
 }
 
 func (s *Service) SubscribeSymbolTrade(symbols []string, onResponse transport.MessageHandler) error {
@@ -227,6 +273,26 @@ func (s *Service) UnsubscribeSymbolOddLot(symbols []string) error {
 	topics := make([]string, len(symbols))
 	for i, sym := range symbols {
 		topics[i] = fmt.Sprintf("oddlot.%s", sym)
+	}
+	return s.unsubscribe(StreamingChannelData, topics)
+}
+
+func (s *Service) SubscribeSymbolOhlcv(symbols []string, interval market.Timeframe, onResponse transport.MessageHandler) error {
+	topics := make([]string, len(symbols))
+	for i, sym := range symbols {
+		topics[i] = fmt.Sprintf("trade.%s@%s", sym, string(interval))
+	}
+	return s.subscribe(&RequestMessage{
+		Method:  StreamingMethodSubscribe,
+		Channel: StreamingChannelData,
+		Topics:  topics,
+	}, onResponse)
+}
+
+func (s *Service) UnsubscribeSymbolOhlcv(symbols []string, interval market.Timeframe) error {
+	topics := make([]string, len(symbols))
+	for i, sym := range symbols {
+		topics[i] = fmt.Sprintf("trade.%s@%s", sym, string(interval))
 	}
 	return s.unsubscribe(StreamingChannelData, topics)
 }

@@ -74,22 +74,6 @@ func (c *RestClient) SetAuthHeader(token string) {
 	c.headers[HeaderAuthorization] = AuthSchemeBearer + token
 }
 
-func (c *RestClient) SetSignatureHeader(signature string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.headers[HeaderSignature] = signature
-}
-
-func (c *RestClient) GetHeaders() map[string]string {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	h := make(map[string]string, len(c.headers))
-	for k, v := range c.headers {
-		h[k] = v
-	}
-	return h
-}
-
 func (c *RestClient) handleResponse(resp *http.Response) (map[string]interface{}, error) {
 	defer resp.Body.Close()
 
@@ -102,7 +86,7 @@ func (c *RestClient) handleResponse(resp *http.Response) (map[string]interface{}
 
 	if resp.StatusCode == httpStatusUnauthorized || resp.StatusCode == httpStatusForbidden {
 		var respBody map[string]interface{}
-		json.Unmarshal(body, &respBody)
+		_ = json.Unmarshal(body, &respBody)
 		return nil, ssi.NewAuthenticationError(
 			fmt.Sprintf("Authentication failed: %d", resp.StatusCode),
 			strconv.Itoa(resp.StatusCode),
@@ -123,7 +107,7 @@ func (c *RestClient) handleResponse(resp *http.Response) (map[string]interface{}
 
 	if resp.StatusCode >= httpStatusErrorThreshold {
 		var respBody map[string]interface{}
-		json.Unmarshal(body, &respBody)
+		_ = json.Unmarshal(body, &respBody)
 		return nil, ssi.NewAPIError(
 			fmt.Sprintf("API error: %d", resp.StatusCode),
 			strconv.Itoa(resp.StatusCode),
@@ -185,9 +169,17 @@ func (c *RestClient) Request(method, path string, params map[string]string, json
 
 		c.mu.Lock()
 		for k, v := range c.headers {
+			if k == HeaderAuthorization && path == "/api/v3/auth/refresh" {
+				continue
+			}
 			req.Header.Set(k, v)
 		}
 		c.mu.Unlock()
+
+		// Per-request header overrides (if any).
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
 
 		restLog.Debug("[%s] %s | params: %v | body: %s", method, path, params, string(bodyBytes))
 
