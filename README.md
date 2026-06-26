@@ -726,8 +726,6 @@ Package: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market`
 
 | Trường | Kiểu | Mô tả |
 |--------|------|-------|
-| `Index` | `string` | Mã chỉ số |
-| `Board` | `string` | Sàn |
 | `TradingDate` | `string` | Ngày giao dịch |
 | `IndexValue` | `float64` | Giá trị chỉ số |
 | `IndexChange` | `float64` | Thay đổi |

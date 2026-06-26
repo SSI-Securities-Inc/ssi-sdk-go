@@ -159,8 +159,6 @@ func (r *MarketIndexSummaryRequest) ToMap() map[string]string {
 
 // MarketIndexSummary is market index summary information.
 type MarketIndexSummary struct {
-	Index              string  `json:"index"`
-	Board              string  `json:"board"`
 	TradingDate        string  `json:"tradingDate"`
 	TotalTrade         int     `json:"totalTrade"`
 	TotalTradeValue    float64 `json:"totalTradeValue"`
@@ -190,8 +188,6 @@ func MarketIndexSummaryFromList(data []interface{}) []MarketIndexSummary {
 			continue
 		}
 		result = append(result, MarketIndexSummary{
-			Index:              util.ToStr(m["index"]),
-			Board:              util.ToStr(m["board"]),
 			TradingDate:        util.ToStr(m["tradingDate"]),
 			TotalTrade:         util.ToInt(m["totalTrade"]),
 			TotalTradeValue:    util.ToFloat64(m["totalTradeValue"]),
@@ -251,7 +247,7 @@ type SecuritiesInfo struct {
 	CWUnderlyingSymbol string  `json:"cwUnderlyingSymbol,omitempty"`
 	CWExercisePrice    float64 `json:"cwExercisePrice,omitempty"`
 	CWExecutionRatio   float64 `json:"cwExecutionRatio,omitempty"`
-	ListedShares       int     `json:"listedShares,omitempty"`
+	ListedShares       int     `json:"listedShare,omitempty"`
 	ICBCode            string  `json:"icbCode,omitempty"`
 	ICBName            string  `json:"icbName,omitempty"`
 	IIndex             float64 `json:"iIndex,omitempty"`
