@@ -2,7 +2,11 @@
 
 Go SDK cho nền tảng giao dịch chứng khoán SSI. Hỗ trợ REST API và WebSocket streaming.
 
-**Yêu cầu:** Go 1.22+
+[![Go Reference](https://pkg.go.dev/badge/github.com/SSI-Securities-Inc/ssi-sdk-go.svg)](https://pkg.go.dev/github.com/SSI-Securities-Inc/ssi-sdk-go)
+[![Go Report Card](https://goreportcard.com/badge/github.com/SSI-Securities-Inc/ssi-sdk-go)](https://goreportcard.com/report/github.com/SSI-Securities-Inc/ssi-sdk-go)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/SSI-Securities-Inc/ssi-sdk-go?logo=go)](https://github.com/SSI-Securities-Inc/ssi-sdk-go)
+[![Release](https://img.shields.io/github/v/release/SSI-Securities-Inc/ssi-sdk-go)](https://github.com/SSI-Securities-Inc/ssi-sdk-go/releases)
+[![License](https://img.shields.io/github/license/SSI-Securities-Inc/ssi-sdk-go)](https://github.com/SSI-Securities-Inc/ssi-sdk-go/blob/main/LICENSE)
 
 ## Mục lục
 
