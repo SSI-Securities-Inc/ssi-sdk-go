@@ -1,4 +1,4 @@
-# SSI FastConnect Go SDK
+# SSI Go SDK
 
 Go SDK cho nền tảng giao dịch chứng khoán SSI. Hỗ trợ REST API và WebSocket streaming.
 
