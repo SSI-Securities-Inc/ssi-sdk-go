@@ -4,8 +4,10 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 )
+
 
 func ToStr(v interface{}) string {
 	if v == nil {
@@ -90,6 +92,25 @@ func ToInt64(v interface{}) int64 {
 	}
 }
 
+func ToBool(v interface{}) bool {
+	if v == nil {
+		return false
+	}
+	switch val := v.(type) {
+	case bool:
+		return val
+	case string:
+		return strings.EqualFold(val, "true") || val == "1"
+	case float64:
+		return val != 0
+	case int:
+		return val != 0
+	default:
+		return false
+	}
+}
+
+
 func TodayDateStr() string {
 	return time.Now().Format("2006/01/02")
 }
@@ -101,6 +122,19 @@ func BeginningOfDay() string {
 func EndOfDay() string {
 	return time.Now().Format("2006/01/02") + " 23:59:59"
 }
+
+func FromBeginningOfDay() string {
+	return BeginningOfDay()
+}
+
+func FromEndOfDay() string {
+	return EndOfDay()
+}
+
+func ConvertToDatetimeStr(t time.Time) string {
+	return t.Format("2006/01/02 15:04:05")
+}
+
 
 const idAlphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const idSize = 20

@@ -24,11 +24,11 @@ func (r *AccountBalanceRequest) ToMap() map[string]string {
 // EquityAccountBalance is equity account balance information.
 type EquityAccountBalance struct {
 	AccountNo        string  `json:"accountNo"`
-	AvailableCash    float64 `json:"availableCash"`
+	AccountBalance   float64 `json:"accountBalance"`
 	TotalDebt        float64 `json:"totalDebt"`
 	InterestLoan     float64 `json:"interestLoan"`
 	OverdueFeeLoan   float64 `json:"overdueFeeLoan"`
-	Withdrawal       float64 `json:"withdrawal"`
+	Withdrawable     float64 `json:"withdrawable"`
 	OnHoldCash       float64 `json:"onHoldCash"`
 	SellUnmatched    float64 `json:"sellUnmatched"`
 	SellT0           float64 `json:"sellT0"`
@@ -41,23 +41,30 @@ type EquityAccountBalance struct {
 	AdvanceCashT0    float64 `json:"advanceCashT0"`
 	AdvanceCashT1    float64 `json:"advanceCashT1"`
 	HoldSubscription float64 `json:"holdSubscription"`
-	BankBalance      float64 `json:"bankBalance"`
-	Dividend         float64 `json:"dividend"`
-	DividendMargin   float64 `json:"dividendMargin"`
-	BlockCash        float64 `json:"blockCash"`
-	InterestCash     float64 `json:"interestCash"`
-	LimitT0          float64 `json:"limitT0"`
-	TermDeposit      float64 `json:"termDeposit"`
 }
 
 func EquityAccountBalanceFromMap(data map[string]interface{}) *EquityAccountBalance {
+	if data == nil {
+		return &EquityAccountBalance{}
+	}
+
+	accBal := util.ToFloat64(data["accountBalance"])
+	if accBal == 0 {
+		accBal = util.ToFloat64(data["availableCash"])
+	}
+
+	withdrawable := util.ToFloat64(data["withdrawable"])
+	if withdrawable == 0 {
+		withdrawable = util.ToFloat64(data["withdrawal"])
+	}
+
 	return &EquityAccountBalance{
 		AccountNo:        util.ToStr(data["accountNo"]),
-		AvailableCash:    util.ToFloat64(data["availableCash"]),
+		AccountBalance:   accBal,
 		TotalDebt:        util.ToFloat64(data["totalDebt"]),
 		InterestLoan:     util.ToFloat64(data["interestLoan"]),
 		OverdueFeeLoan:   util.ToFloat64(data["overdueFeeLoan"]),
-		Withdrawal:       util.ToFloat64(data["withdrawal"]),
+		Withdrawable:     withdrawable,
 		OnHoldCash:       util.ToFloat64(data["onHoldCash"]),
 		SellUnmatched:    util.ToFloat64(data["sellUnmatched"]),
 		SellT0:           util.ToFloat64(data["sellT0"]),
@@ -70,15 +77,9 @@ func EquityAccountBalanceFromMap(data map[string]interface{}) *EquityAccountBala
 		AdvanceCashT0:    util.ToFloat64(data["advanceCashT0"]),
 		AdvanceCashT1:    util.ToFloat64(data["advanceCashT1"]),
 		HoldSubscription: util.ToFloat64(data["holdSubscription"]),
-		BankBalance:      util.ToFloat64(data["bankBalance"]),
-		Dividend:         util.ToFloat64(data["dividend"]),
-		DividendMargin:   util.ToFloat64(data["dividendMargin"]),
-		BlockCash:        util.ToFloat64(data["blockCash"]),
-		InterestCash:     util.ToFloat64(data["interestCash"]),
-		LimitT0:          util.ToFloat64(data["limitT0"]),
-		TermDeposit:      util.ToFloat64(data["termDeposit"]),
 	}
 }
+
 
 // DerivativeAccountBalance is derivative account balance information.
 type DerivativeAccountBalance struct {

@@ -342,6 +342,10 @@ func (s *Service) SubscribeOrderStatus(accountNo string, onResponse transport.Me
 	}, onResponse)
 }
 
+func (s *Service) SubscribeFcoOrderStatus(accountNo string, onResponse transport.MessageHandler) error {
+	return s.SubscribeOrderStatus(accountNo, onResponse)
+}
+
 func (s *Service) SubscribePortfolio(accountNo string, onResponse transport.MessageHandler) error {
 	if accountNo == "" {
 		accountNo = "*"
@@ -352,6 +356,7 @@ func (s *Service) SubscribePortfolio(accountNo string, onResponse transport.Mess
 		Topics:  []string{fmt.Sprintf("portfolio.%s", accountNo)},
 	}, onResponse)
 }
+
 
 func (s *Service) Wait(timeout *time.Duration) {
 	s.ws.Wait(timeout)

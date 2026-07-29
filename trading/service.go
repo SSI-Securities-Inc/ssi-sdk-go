@@ -1,6 +1,7 @@
 package trading
 
 import (
+	"encoding/json"
 	"fmt"
 
 	ssi "github.com/SSI-Securities-Inc/ssi-sdk-go/v3"
@@ -10,16 +11,21 @@ import (
 	"github.com/SSI-Securities-Inc/ssi-sdk-go/v3/transport"
 )
 
+
 var tradingLog = logger.New("ssi_sdk.services.trading")
 
 const epTradingOrder = "/api/v3/trading/order"
 const epTradingMaxBuySell = "/api/v3/trading/maxBuySell"
+const epTradingFcoOrder = "/api/v3/trading/fco/order"
+const epTradingFcoList = "/api/v3/trading/fco/list"
+const epTradingFcoOrderBook = "/api/v3/trading/fco/orderbook"
 
-// Service provides trading operations: place/cancel/modify orders.
+// Service provides trading operations: place/cancel/modify orders and FCO orders.
 type Service struct {
 	rest       *transport.RestClient
 	privateKey string
 }
+
 
 func NewService(rest *transport.RestClient, privateKey string) *Service {
 	return &Service{rest: rest, privateKey: privateKey}
@@ -217,3 +223,233 @@ func (s *Service) getMaxBuySell(accountNo, symbol string, price *float64) (*MaxB
 
 	return MaxBuySellResponseFromMap(data, symbol), nil
 }
+
+// ---------------------------------------------------------------------------
+// Flexible Conditional Orders (FCO)
+// ---------------------------------------------------------------------------
+
+func (s *Service) placeFcoOrder(payloadJSON string) (*FCOPlaceResponse, error) {
+	sig, err := signature.Sign(payloadJSON, s.privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign FCO request: %w", err)
+	}
+
+	headers := map[string]string{transport.HeaderSignature: sig}
+	data, err := s.rest.Post(epTradingFcoOrder, nil, []byte(payloadJSON), headers)
+	if err != nil {
+		tradingLog.Error("Error placing FCO order: %v", err)
+		return nil, err
+	}
+
+	return FCOPlaceResponseFromMap(data), nil
+}
+
+func (s *Service) PlaceFcoGtd(accountNo, symbol string, side OrderSide, quantity int, price interface{}, priceSlip float64, fromDate, toDate string) (*FCOPlaceResponse, error) {
+	params := &GTDParams{
+		AccountNo: accountNo,
+		Symbol:    symbol,
+		Side:      side,
+		Quantity:  quantity,
+		Price:     price,
+		PriceSlip: priceSlip,
+		FromDate:  fromDate,
+		ToDate:    toDate,
+	}
+	return s.placeFcoOrder(params.ToJSON())
+}
+
+func (s *Service) PlaceFcoStop(accountNo, symbol string, side OrderSide, quantity int, stopPrice float64, operator FCOOperator, fromDate, toDate string) (*FCOPlaceResponse, error) {
+	params := &StopParams{
+		AccountNo: accountNo,
+		Symbol:    symbol,
+		Side:      side,
+		Quantity:  quantity,
+		StopPrice: stopPrice,
+		Operator:  operator,
+		FromDate:  fromDate,
+		ToDate:    toDate,
+		FCOType:   FCOTypeStop,
+	}
+	return s.placeFcoOrder(params.ToJSON())
+}
+
+func (s *Service) PlaceFcoStopLimit(accountNo, symbol string, side OrderSide, quantity int, price interface{}, priceSlip, stopPrice float64, operator FCOOperator, fromDate, toDate string) (*FCOPlaceResponse, error) {
+	params := &StopParams{
+		AccountNo: accountNo,
+		Symbol:    symbol,
+		Side:      side,
+		Quantity:  quantity,
+		Price:     price,
+		PriceSlip: priceSlip,
+		StopPrice: stopPrice,
+		Operator:  operator,
+		FromDate:  fromDate,
+		ToDate:    toDate,
+		FCOType:   FCOTypeStopLimit,
+	}
+	return s.placeFcoOrder(params.ToJSON())
+}
+
+func (s *Service) PlaceFcoTrailingStop(accountNo, symbol string, side OrderSide, quantity int, activePrice, trailingAmount float64, fromDate, toDate string) (*FCOPlaceResponse, error) {
+	params := &TrailingStopParams{
+		AccountNo:      accountNo,
+		Symbol:         symbol,
+		Side:           side,
+		Quantity:       quantity,
+		ActivePrice:    activePrice,
+		TrailingAmount: trailingAmount,
+		FromDate:       fromDate,
+		ToDate:         toDate,
+		FCOType:        FCOTypeTrailingStop,
+	}
+	return s.placeFcoOrder(params.ToJSON())
+}
+
+func (s *Service) PlaceFcoTrailingStopLimit(accountNo, symbol string, side OrderSide, quantity int, activePrice, trailingAmount, priceSlip float64, fromDate, toDate string) (*FCOPlaceResponse, error) {
+	params := &TrailingStopParams{
+		AccountNo:      accountNo,
+		Symbol:         symbol,
+		Side:           side,
+		Quantity:       quantity,
+		ActivePrice:    activePrice,
+		TrailingAmount: trailingAmount,
+		PriceSlip:      priceSlip,
+		FromDate:       fromDate,
+		ToDate:         toDate,
+		FCOType:        FCOTypeTrailingStopLimit,
+	}
+	return s.placeFcoOrder(params.ToJSON())
+}
+
+func (s *Service) PlaceFcoOco(accountNo, symbol string, side OrderSide, quantity int, tpActivePrice, slActivePrice float64, tpPrice, slPrice interface{}, tpSlip, slSlip float64, fromDate, toDate string) (*FCOPlaceResponse, error) {
+	params := &OCOParams{
+		AccountNo:     accountNo,
+		Symbol:        symbol,
+		Side:          side,
+		Quantity:      quantity,
+		TPActivePrice: tpActivePrice,
+		SLActivePrice: slActivePrice,
+		TPPrice:       tpPrice,
+		SLPrice:       slPrice,
+		TPSlip:        tpSlip,
+		SLSlip:        slSlip,
+		FromDate:      fromDate,
+		ToDate:        toDate,
+		FCOType:       FCOTypeOCO,
+	}
+	return s.placeFcoOrder(params.ToJSON())
+}
+
+func (s *Service) PlaceFcoBullBear(accountNo, symbol string, side OrderSide, quantity int, price interface{}, priceSlip float64, tpActivePrice, slActivePrice float64, tpPrice, slPrice interface{}, tpSlip, slSlip float64, fromDate, toDate string) (*FCOPlaceResponse, error) {
+	params := &BullBearParams{
+		AccountNo:     accountNo,
+		Symbol:        symbol,
+		Side:          side,
+		Quantity:      quantity,
+		Price:         price,
+		PriceSlip:     priceSlip,
+		TPActivePrice: tpActivePrice,
+		SLActivePrice: slActivePrice,
+		TPPrice:       tpPrice,
+		SLPrice:       slPrice,
+		TPSlip:        tpSlip,
+		SLSlip:        slSlip,
+		FromDate:      fromDate,
+		ToDate:        toDate,
+		FCOType:       FCOTypeBullBear,
+	}
+	return s.placeFcoOrder(params.ToJSON())
+}
+
+func (s *Service) CancelFco(fcoID string) (*FCOCancelResponse, error) {
+	if err := ssi.RequireNonEmpty(fcoID, "fcoId"); err != nil {
+		return nil, err
+	}
+
+	payloadMap := map[string]interface{}{
+		"fcoId":     fcoID,
+		"deviceId":  DefaultDeviceID,
+		"userAgent": DefaultUserAgent,
+	}
+	b, _ := json.Marshal(payloadMap)
+	payloadJSON := string(b)
+
+	sig, err := signature.Sign(payloadJSON, s.privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign cancel FCO request: %w", err)
+	}
+
+	headers := map[string]string{transport.HeaderSignature: sig}
+	data, err := s.rest.Delete(epTradingFcoOrder, nil, []byte(payloadJSON), headers)
+	if err != nil {
+		tradingLog.Error("Error canceling FCO order: %v", err)
+		return nil, err
+	}
+
+	return FCOCancelResponseFromMap(data), nil
+}
+
+func (s *Service) GetFcoByAccountNo(accountNo string, pageIndex, pageSize int) (*FCOListResponse, error) {
+	req := &FCOListRequest{AccountNo: accountNo, PageIndex: pageIndex, PageSize: pageSize}
+	data, err := s.rest.Get(epTradingFcoList, req.ToMap(), nil)
+	if err != nil {
+		tradingLog.Error("Error getting FCO by account: %v", err)
+		return nil, err
+	}
+	return FCOListResponseFromMap(data), nil
+}
+
+func (s *Service) GetFcoBySymbol(accountNo, symbol string, pageIndex, pageSize int) (*FCOListResponse, error) {
+	req := &FCOListRequest{AccountNo: accountNo, Symbol: symbol, PageIndex: pageIndex, PageSize: pageSize}
+	data, err := s.rest.Get(epTradingFcoList, req.ToMap(), nil)
+	if err != nil {
+		tradingLog.Error("Error getting FCO by symbol: %v", err)
+		return nil, err
+	}
+	return FCOListResponseFromMap(data), nil
+}
+
+func (s *Service) GetFcoByStatus(accountNo string, status FCOStatus, pageIndex, pageSize int) (*FCOListResponse, error) {
+	req := &FCOListRequest{AccountNo: accountNo, ProcessStatus: status, PageIndex: pageIndex, PageSize: pageSize}
+	data, err := s.rest.Get(epTradingFcoList, req.ToMap(), nil)
+	if err != nil {
+		tradingLog.Error("Error getting FCO by status: %v", err)
+		return nil, err
+	}
+	return FCOListResponseFromMap(data), nil
+}
+
+func (s *Service) GetFcoByDate(accountNo, fromDate, toDate string, pageIndex, pageSize int) (*FCOListResponse, error) {
+	req := &FCOListRequest{AccountNo: accountNo, FromDate: fromDate, ToDate: toDate, PageIndex: pageIndex, PageSize: pageSize}
+	data, err := s.rest.Get(epTradingFcoList, req.ToMap(), nil)
+	if err != nil {
+		tradingLog.Error("Error getting FCO by date: %v", err)
+		return nil, err
+	}
+	return FCOListResponseFromMap(data), nil
+}
+
+func (s *Service) GetFcoById(accountNo, fcoID string) (*FCOInfo, error) {
+	req := &FCOListRequest{AccountNo: accountNo, FCOID: fcoID}
+	data, err := s.rest.Get(epTradingFcoList, req.ToMap(), nil)
+	if err != nil {
+		tradingLog.Error("Error getting FCO by ID: %v", err)
+		return nil, err
+	}
+	res := FCOListResponseFromMap(data)
+	if len(res.FCOList) > 0 {
+		return res.FCOList[0], nil
+	}
+	return nil, nil
+}
+
+func (s *Service) GetFcoOrderBook(fcoID string, pageIndex, pageSize int) (*FCOOrderBookResponse, error) {
+	req := &FCOOrderBookRequest{FCOID: fcoID, PageIndex: pageIndex, PageSize: pageSize}
+	data, err := s.rest.Get(epTradingFcoOrderBook, req.ToMap(), nil)
+	if err != nil {
+		tradingLog.Error("Error getting FCO order book: %v", err)
+		return nil, err
+	}
+	return FCOOrderBookResponseFromMap(data), nil
+}
+

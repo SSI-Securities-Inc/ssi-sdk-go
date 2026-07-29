@@ -25,6 +25,8 @@ const (
 	HeaderAuthorization = "Authorization"
 	HeaderRetryAfter    = "Retry-After"
 	HeaderSignature     = "X-Signature"
+	HeaderUserAgent     = "User-Agent"
+	DefaultUserAgent    = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 	ContentTypeJSON     = "application/json"
 	AuthSchemeBearer    = "Bearer "
 
@@ -64,9 +66,11 @@ func NewRestClient(config *ssi.Config) *RestClient {
 		headers: map[string]string{
 			HeaderContentType: ContentTypeJSON,
 			HeaderAccept:      ContentTypeJSON,
+			HeaderUserAgent:     DefaultUserAgent,
 		},
 	}
 }
+
 
 func (c *RestClient) SetAuthHeader(token string) {
 	c.mu.Lock()

@@ -165,6 +165,9 @@ func (c *WebSocketClient) Send(data map[string]interface{}) error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.conn == nil {
+		return ssi.NewWebSocketError("Connection closed while sending message.")
+	}
 	if err := c.conn.WriteMessage(websocket.TextMessage, b); err != nil {
 		return ssi.NewWebSocketError(fmt.Sprintf("Failed to send message: %v", err))
 	}

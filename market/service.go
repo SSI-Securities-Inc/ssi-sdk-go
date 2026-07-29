@@ -58,13 +58,47 @@ func (s *Service) GetOHLC1Minute(symbol string) ([]OHLCData, error) {
 	return s.getOHLC(symbol, util.BeginningOfDay(), util.EndOfDay(), TimeframeMinute1, defaultPage, defaultSize)
 }
 
-func (s *Service) DownloadOHLC1Minute(symbol string) (map[string]interface{}, error) {
-	return nil, fmt.Errorf("OHLC download is not implemented yet")
+func (s *Service) DownloadOHLC1Minute(symbol string) ([]OHLCData, error) {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
+		return nil, err
+	}
+	var allData []OHLCData
+	page := 1
+	for {
+		list, err := s.getOHLC(symbol, util.BeginningOfDay(), util.EndOfDay(), TimeframeMinute1, page, defaultSize)
+		if err != nil {
+			return nil, err
+		}
+		allData = append(allData, list...)
+		if len(list) < defaultSize {
+			break
+		}
+		page++
+	}
+	return allData, nil
 }
 
-func (s *Service) DownloadOHLC1Day(symbol string) (map[string]interface{}, error) {
-	return nil, fmt.Errorf("OHLC download is not implemented yet")
+func (s *Service) DownloadOHLC1Day(symbol string) ([]OHLCData, error) {
+	if err := ssi.RequireNonEmpty(symbol, "symbol"); err != nil {
+		return nil, err
+	}
+	var allData []OHLCData
+	page := 1
+	for {
+		list, err := s.getOHLC(symbol, util.BeginningOfDay(), util.EndOfDay(), TimeframeDay1, page, defaultSize)
+		if err != nil {
+			return nil, err
+		}
+		allData = append(allData, list...)
+		if len(list) < defaultSize {
+			break
+		}
+		page++
+	}
+	return allData, nil
 }
+
+
 
 
 func (s *Service) GetOHLC1MinuteHistorical(symbol, fromDate, toDate string, page, size int) ([]OHLCData, error) {

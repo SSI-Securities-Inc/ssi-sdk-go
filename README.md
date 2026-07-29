@@ -393,6 +393,80 @@ maxBS, err := t.Trading.GetMaxBuySell("1234561", "SSI", &price)
 maxBS, err := t.Trading.GetMaxBuySellAtMarketPrice("1234561", "SSI")
 ```
 
+### 5.5. Lệnh điều kiện (Flexible Conditional Orders - FCO)
+
+SDK hỗ trợ 7 loại lệnh điều kiện linh hoạt FCO, tra cứu danh sách lệnh FCO, nhật ký sổ lệnh FCO và hủy lệnh FCO:
+
+```go
+import (
+    "github.com/SSI-Securities-Inc/ssi-sdk-go/v3/internal/util"
+    "github.com/SSI-Securities-Inc/ssi-sdk-go/v3/trading"
+)
+
+accountNo := "1234561"
+fromDate := util.BeginningOfDay() // "YYYY/MM/DD 00:00:00"
+toDate := util.EndOfDay()         // "YYYY/MM/DD 23:59:59"
+
+// 1. Đặt lệnh GTD (Good Till Date)
+gtd, err := t.Trading.PlaceFcoGtd(
+    accountNo, "SSI", trading.OrderSideBuy, 100, 25000, 500, fromDate, toDate,
+)
+
+// 2. Đặt lệnh Stop Market
+stop, err := t.Trading.PlaceFcoStop(
+    accountNo, "SSI", trading.OrderSideSell, 100, 24000, trading.FCOOperatorLesserOrEqual, fromDate, toDate,
+)
+
+// 3. Đặt lệnh Stop Limit
+stopLimit, err := t.Trading.PlaceFcoStopLimit(
+    accountNo, "SSI", trading.OrderSideBuy, 100, 25500, 500, 25000, trading.FCOOperatorGreaterOrEqual, fromDate, toDate,
+)
+
+// 4. Đặt lệnh Trailing Stop
+trailing, err := t.Trading.PlaceFcoTrailingStop(
+    accountNo, "SSI", trading.OrderSideBuy, 100, 26000, 1000, fromDate, toDate,
+)
+
+// 5. Đặt lệnh Trailing Stop Limit
+trailingLimit, err := t.Trading.PlaceFcoTrailingStopLimit(
+    accountNo, "SSI", trading.OrderSideBuy, 100, 26000, 1000, 500, fromDate, toDate,
+)
+
+// 6. Đặt lệnh OCO (One-Cancels-the-Other)
+oco, err := t.Trading.PlaceFcoOco(
+    accountNo, "SSI", trading.OrderSideSell, 100, 30000, 24000, trading.OrderTypeMTL, trading.OrderTypeMTL, 500, 500, fromDate, toDate,
+)
+
+// 7. Đặt lệnh Bull Bear
+bullBear, err := t.Trading.PlaceFcoBullBear(
+    accountNo, "SSI", trading.OrderSideBuy, 1000, 100.5, 10, 30, 20, 30, 10, 0.1, 0, fromDate, toDate,
+)
+
+// 8. Tra cứu danh sách lệnh FCO
+fcoList, err := t.Trading.GetFcoByAccountNo(accountNo, 1, 10)
+
+// 9. Hủy lệnh FCO
+cancelRes, err := t.Trading.CancelFco(gtd.FCOID)
+```
+
+| Method | Mô tả |
+|--------|-------|
+| `PlaceFcoGtd(...)` | Đặt lệnh GTD (Good Till Date) |
+| `PlaceFcoStop(...)` | Đặt lệnh Stop Market |
+| `PlaceFcoStopLimit(...)` | Đặt lệnh Stop Limit |
+| `PlaceFcoTrailingStop(...)` | Đặt lệnh Trailing Stop Market |
+| `PlaceFcoTrailingStopLimit(...)` | Đặt lệnh Trailing Stop Limit |
+| `PlaceFcoOco(...)` | Đặt lệnh OCO (One Cancels the Other) |
+| `PlaceFcoBullBear(...)` | Đặt lệnh Bull Bear |
+| `CancelFco(fcoID)` | Hủy lệnh FCO theo `fcoID` |
+| `GetFcoByAccountNo(...)` | Tra cứu danh sách FCO theo tài khoản |
+| `GetFcoBySymbol(...)` | Tra cứu FCO lọc theo mã chứng khoán |
+| `GetFcoByStatus(...)` | Tra cứu FCO lọc theo trạng thái |
+| `GetFcoByDate(...)` | Tra cứu FCO lọc theo khoảng ngày |
+| `GetFcoById(...)` | Lấy thông tin 1 lệnh FCO theo ID |
+| `GetFcoOrderBook(...)` | Lấy lịch sử thực thi (Order Book) của FCO |
+
+
 ---
 
 ## 6. Streaming realtime
@@ -437,6 +511,8 @@ s.Streaming.SetOnTrading(func(msg interface{}) {
     switch m := msg.(type) {
     case *stream.OrderStatusMessage:
         fmt.Printf("[ORDER] %s %s | Status: %s\n", m.Symbol, m.Side, m.Status)
+    case *stream.FCOOrderUpdateMessage:
+        fmt.Printf("[FCO ORDER] %s | ProcessStatus: %s\n", m.Symbol, m.ProcessStatus)
     case *stream.PortfolioMessage:
         fmt.Printf("[PORTFOLIO] %s | Total: %.0f\n", m.AccountNo, m.TotalAsset)
     }
@@ -449,7 +525,7 @@ s.Streaming.SetOnHeartbeat(func(msg *stream.HeartbeatMessage) {
 
 **Message types qua `SetOnData`:** `*stream.TradeMessage`, `*stream.IntervalMessage`, `*stream.QuoteMessage`, `*stream.ForeignRoomMessage`, `*stream.MarketStatusMessage`, `*stream.PutMessage`, `*stream.OddLotMessage`.
 
-**Message types qua `SetOnTrading`:** `*stream.OrderStatusMessage`, `*stream.PortfolioMessage`.
+**Message types qua `SetOnTrading`:** `*stream.OrderStatusMessage`, `*stream.PortfolioMessage`, `*stream.FCOOrderUpdateMessage`.
 
 ### 6.2. Subscribe dữ liệu thị trường
 
@@ -478,8 +554,9 @@ s.Streaming.UnsubscribeIndex([]string{"VNINDEX"})
 ### 6.4. Subscribe giao dịch (order status & portfolio)
 
 ```go
-s.Streaming.SubscribeOrderStatus("", nil)       // tất cả tài khoản
-s.Streaming.SubscribeOrderStatus("1234561", nil) // tài khoản cụ thể
+s.Streaming.SubscribeOrderStatus("", nil)           // tất cả tài khoản
+s.Streaming.SubscribeOrderStatus("1234561", nil)     // tài khoản cụ thể
+s.Streaming.SubscribeFcoOrderStatus("1234561", nil)  // lệnh điều kiện FCO
 s.Streaming.SubscribePortfolio("", nil)
 ```
 
