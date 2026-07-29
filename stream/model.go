@@ -306,6 +306,45 @@ func PortfolioMessageFromMap(data map[string]interface{}) *PortfolioMessage {
 	}
 }
 
+// FCOOrderUpdateMessage is a real-time FCO order update message.
+type FCOOrderUpdateMessage struct {
+	Type            StreamingType     `json:"type"`
+	FCOID           string            `json:"fcoId"`
+	ProcessStatus   trading.FCOStatus `json:"processStatus,omitempty"`
+	MatchedQuantity int               `json:"matchedQuantity"`
+	IsPlaceOrder    bool              `json:"isPlaceOrder"`
+	Symbol          string            `json:"symbol"`
+	Quantity        int               `json:"quantity"`
+	Price           string            `json:"price"`
+	AccountNo       string            `json:"accountNo"`
+	UpdatedTime     string            `json:"updatedTime"`
+	Status          string            `json:"status"`
+	Message         string            `json:"message"`
+	Username        string            `json:"username"`
+	EventType       string            `json:"eventType"`
+	FCOType         trading.FCOType   `json:"fcoType,omitempty"`
+}
+
+func FCOOrderUpdateMessageFromMap(data map[string]interface{}) *FCOOrderUpdateMessage {
+	return &FCOOrderUpdateMessage{
+		Type:            StreamingType("fcoOrderEvent"),
+		FCOID:           util.ToStr(data["fcoId"]),
+		ProcessStatus:   trading.FCOStatus(util.ToStr(data["processStatus"])),
+		MatchedQuantity: util.ToInt(data["matchedQuantity"]),
+		IsPlaceOrder:    util.ToBool(data["isPlaceOrder"]),
+		Symbol:          util.ToStr(data["symbol"]),
+		Quantity:        util.ToInt(data["quantity"]),
+		Price:           util.ToStr(data["price"]),
+		AccountNo:       util.ToStr(data["accountNo"]),
+		UpdatedTime:     util.ToStr(data["updatedTime"]),
+		Status:          util.ToStr(data["status"]),
+		Message:         util.ToStr(data["message"]),
+		Username:        util.ToStr(data["username"]),
+		EventType:       util.ToStr(data["eventType"]),
+		FCOType:         trading.FCOType(util.ToStr(data["type"])),
+	}
+}
+
 // ParseStreamingDataMessage parses a streaming data message based on topic.
 func ParseStreamingDataMessage(topic string, data map[string]interface{}) interface{} {
 	switch {
@@ -333,10 +372,16 @@ func ParseStreamingDataMessage(topic string, data map[string]interface{}) interf
 func ParseStreamingTradingMessage(topic string, data map[string]interface{}) interface{} {
 	switch {
 	case strings.HasPrefix(topic, "order."):
+		if eventType, ok := data["eventType"].(string); ok && eventType == "fcoEvent" {
+			return FCOOrderUpdateMessageFromMap(data)
+		}
 		return OrderStatusMessageFromMap(data)
 	case strings.HasPrefix(topic, "portfolio."):
 		return PortfolioMessageFromMap(data)
+	case strings.HasPrefix(topic, "fco_order.") || strings.HasPrefix(topic, "fco."):
+		return FCOOrderUpdateMessageFromMap(data)
 	default:
 		return data
 	}
 }
+

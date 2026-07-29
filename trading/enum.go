@@ -38,3 +38,41 @@ const (
 	OrderStatusExpired          OrderStatus = "EX"
 	OrderStatusPreSession       OrderStatus = "IAV"
 )
+
+type FCOType string
+
+const (
+	FCOTypeGTD               FCOType = "gtd"
+	FCOTypeStop              FCOType = "stop"
+	FCOTypeStopLimit         FCOType = "stop_limit"
+	FCOTypeTrailingStop      FCOType = "trailing_stop"
+	FCOTypeTrailingStopLimit FCOType = "trailing_stop_limit"
+	FCOTypeOCO               FCOType = "oco"
+	FCOTypeBullBear          FCOType = "bullbear"
+)
+
+type FCOOperator string
+
+const (
+	FCOOperatorGreater        FCOOperator = "greater"
+	FCOOperatorGreaterOrEqual FCOOperator = "greater_or_equal"
+	FCOOperatorLesser         FCOOperator = "lesser"
+	FCOOperatorLesserOrEqual  FCOOperator = "lesser_or_equal"
+	FCOOperatorEqual          FCOOperator = "equal"
+)
+
+
+type FCOStatus string
+
+const (
+	FCOStatusInit FCOStatus = "INIT"
+	FCOStatusWait FCOStatus = "WAIT"
+	FCOStatusTri  FCOStatus = "TRI"
+	FCOStatusTrit FCOStatus = "TRIT"
+	FCOStatusTer  FCOStatus = "TER"
+	FCOStatusFis  FCOStatus = "FIS"
+	FCOStatusWc   FCOStatus = "WC"
+	FCOStatusExp  FCOStatus = "EXP"
+	FCOStatusErr  FCOStatus = "ERR"
+)
+
