@@ -15,6 +15,9 @@ const (
 	epAccessToken  = "/api/v3/auth/token"
 	epRefreshToken = "/api/v3/auth/refresh"
 	epRequestOTP   = "/api/v3/auth/requestOtp"
+
+	SmartOTPPendingStatus = 202
+	SmartOTPPendingCode   = 401114
 )
 
 // TokenManager handles authentication tokens and OTP verification.
@@ -101,7 +104,7 @@ func (tm *TokenManager) Refresh() (*Token, error) {
 	return tm.token, nil
 }
 
-func (tm *TokenManager) Authenticate(otp string, transactionID ...string) (*Token, error) {
+func (tm *TokenManager) authenticateOnce(otp string, transactionID string) (*Token, error) {
 	if tm.apiKey == "" || tm.apiSecret == "" {
 		return nil, ssi.NewAuthenticationError("api_key and api_secret are required for authentication", "", 0, nil)
 	}
@@ -113,8 +116,8 @@ func (tm *TokenManager) Authenticate(otp string, transactionID ...string) (*Toke
 	if otp != "" {
 		body["otp"] = otp
 	}
-	if len(transactionID) > 0 && transactionID[0] != "" {
-		body["transactionId"] = transactionID[0]
+	if transactionID != "" {
+		body["transactionId"] = transactionID
 	}
 
 	data, err := tm.rest.Post(epAccessToken, body, nil, nil)
@@ -124,18 +127,25 @@ func (tm *TokenManager) Authenticate(otp string, transactionID ...string) (*Toke
 	}
 
 	payload := extractPayload(data)
-	if payload == nil {
-		return nil, ssi.NewAPIError("Unexpected response format while authenticating", "", 0, nil)
+	if payload == nil || payload["accessToken"] == nil || fmt.Sprintf("%v", payload["accessToken"]) == "" {
+		return nil, ssi.NewAPIError("Push-approval is pending", "202", SmartOTPPendingStatus, data)
 	}
 
 	tm.token = TokenFromMap(payload)
 	if tm.token.AccessToken == "" {
-		return nil, ssi.NewAPIError("Authentication payload is missing access token", "", 0, nil)
+		return nil, ssi.NewAPIError("Authentication payload is missing access token", "202", SmartOTPPendingStatus, data)
 	}
 	tm.rest.SetAuthHeader(tm.token.AccessToken)
 
 	authLog.Info("Authentication successful")
 	return tm.token, nil
+}
+
+func (tm *TokenManager) Authenticate(otp string, transactionID ...string) (*Token, error) {
+	if len(transactionID) > 0 && transactionID[0] != "" {
+		return tm.PollSmartOTP(transactionID[0], 5*time.Second, 6)
+	}
+	return tm.authenticateOnce(otp, "")
 }
 
 func (tm *TokenManager) SetToken(token *Token) {
@@ -163,11 +173,43 @@ func (tm *TokenManager) RequestOTP() (map[string]interface{}, error) {
 	return data, nil
 }
 
+func isSmartOTPPending(err error) bool {
+	if err == nil {
+		return false
+	}
+	if apiErr, ok := err.(*ssi.APIError); ok {
+		if apiErr.StatusCode == SmartOTPPendingStatus {
+			return true
+		}
+		if codeVal, exists := apiErr.ResponseBody["code"]; exists {
+			codeStr := fmt.Sprintf("%v", codeVal)
+			if codeStr == fmt.Sprintf("%d", SmartOTPPendingCode) || codeStr == "401114" {
+				return true
+			}
+		}
+	}
+	if authErr, ok := err.(*ssi.AuthenticationError); ok {
+		if authErr.StatusCode == SmartOTPPendingStatus {
+			return true
+		}
+		if codeVal, exists := authErr.ResponseBody["code"]; exists {
+			codeStr := fmt.Sprintf("%v", codeVal)
+			if codeStr == fmt.Sprintf("%d", SmartOTPPendingCode) || codeStr == "401114" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (tm *TokenManager) PollSmartOTP(transactionID string, interval time.Duration, maxRetries int) (*Token, error) {
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		tok, err := tm.Authenticate("", transactionID)
+		tok, err := tm.authenticateOnce("", transactionID)
 		if err == nil {
 			return tok, nil
+		}
+		if !isSmartOTPPending(err) {
+			return nil, err
 		}
 		if attempt >= maxRetries {
 			return nil, ssi.NewAuthenticationError(
@@ -184,17 +226,17 @@ func (tm *TokenManager) PollSmartOTP(transactionID string, interval time.Duratio
 }
 
 func (tm *TokenManager) EnsureAuthenticated(otp string, transactionID ...string) (string, error) {
-	if tm.token == nil || tm.IsTokenExpired() {
+	txID := ""
+	if len(transactionID) > 0 {
+		txID = transactionID[0]
+	}
+	if otp != "" || txID != "" {
+		if _, err := tm.Authenticate(otp, txID); err != nil {
+			return "", err
+		}
+	} else if tm.token == nil || tm.IsTokenExpired() {
 		if tm.HasRefreshToken() {
 			if _, err := tm.Refresh(); err != nil {
-				return "", err
-			}
-		} else if otp != "" {
-			if _, err := tm.Authenticate(otp); err != nil {
-				return "", err
-			}
-		} else if len(transactionID) > 0 && transactionID[0] != "" {
-			if _, err := tm.PollSmartOTP(transactionID[0], 5*time.Second, 6); err != nil {
 				return "", err
 			}
 		} else {
