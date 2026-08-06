@@ -129,7 +129,7 @@ if err != nil {
 log.Printf("Access token: %s", token.AccessToken)
 
 // Smart OTP Push Notification: truyền transactionID thu được từ RequestOTP
-token, err := auth.TokenManager.AuthenticateSmartOTP("TRANSACTION_ID")
+token, err := auth.Authenticate("", "TRANSACTION_ID")
 ```
 
 ### 1.2. Yêu cầu gửi OTP

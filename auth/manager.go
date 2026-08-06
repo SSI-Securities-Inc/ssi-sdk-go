@@ -16,8 +16,10 @@ const (
 	epRefreshToken = "/api/v3/auth/refresh"
 	epRequestOTP   = "/api/v3/auth/requestOtp"
 
-	SmartOTPPendingStatus = 202
-	SmartOTPPendingCode   = 401114
+	SmartOTPPendingStatus  = 202
+	SmartOTPPendingCode    = 401114
+	SmartOTPPollMaxRetries = 5
+	SmartOTPPollInterval   = 5 * time.Second
 )
 
 // TokenManager handles authentication tokens and OTP verification.
@@ -143,7 +145,7 @@ func (tm *TokenManager) authenticateOnce(otp string, transactionID string) (*Tok
 
 func (tm *TokenManager) Authenticate(otp string, transactionID ...string) (*Token, error) {
 	if len(transactionID) > 0 && transactionID[0] != "" {
-		return tm.PollSmartOTP(transactionID[0], 5*time.Second, 6)
+		return tm.PollSmartOTP(transactionID[0], SmartOTPPollInterval, SmartOTPPollMaxRetries)
 	}
 	return tm.authenticateOnce(otp, "")
 }
