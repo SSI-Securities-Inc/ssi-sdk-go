@@ -360,3 +360,36 @@ func SecuritiesSummaryFromList(data []interface{}) []SecuritiesSummary {
 	}
 	return result
 }
+
+// MasterData represents ceiling, floor, and reference prices for a symbol on a trading date.
+type MasterData struct {
+	Board       Board   `json:"board"`
+	Symbol      string  `json:"symbol"`
+	TradingDate string  `json:"tradingDate"`
+	Ceiling     float64 `json:"ceiling"`
+	Floor       float64 `json:"floor"`
+	RefPrice    float64 `json:"refPrice"`
+}
+
+func MasterDataFromList(data []interface{}) []MasterData {
+	var result []MasterData
+	for _, item := range data {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		refPrice := util.ToFloat64(m["refPrice"])
+		if refPrice == 0 {
+			refPrice = util.ToFloat64(m["referencePrice"])
+		}
+		result = append(result, MasterData{
+			Board:       Board(util.ToStr(m["board"])),
+			Symbol:      util.ToStr(m["symbol"]),
+			TradingDate: util.ToStr(m["tradingDate"]),
+			Ceiling:     util.ToFloat64(m["ceiling"]),
+			Floor:       util.ToFloat64(m["floor"]),
+			RefPrice:    refPrice,
+		})
+	}
+	return result
+}

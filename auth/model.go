@@ -37,9 +37,10 @@ func TokenFromMap(data map[string]interface{}) *Token {
 
 // TokenRequest is the request to obtain an access token.
 type TokenRequest struct {
-	APIKey    string `json:"apiKey"`
-	APISecret string `json:"apiSecret"`
-	OTP       string `json:"otp,omitempty"`
+	APIKey        string `json:"apiKey"`
+	APISecret     string `json:"apiSecret"`
+	OTP           string `json:"otp,omitempty"`
+	TransactionID string `json:"transactionId,omitempty"`
 }
 
 // OTPRequest is the request to get OTP for trading operations.

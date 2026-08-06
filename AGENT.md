@@ -70,8 +70,9 @@ streamClient := ssi.NewStream(auth)
 | `DownloadOHLC1Day` | `symbol` | `([]OHLCData, error)` | Download full 1-day OHLC history |
 | `GetMarketIndexes` | `indexID` | `([]MarketIndex, error)` | Get list of market indexes |
 | `GetMarketIndexSummary` | `indexID, fromDate, toDate, page, size` | `(*MarketIndexSummary, error)` | Summary metrics for an index |
-| `GetSecuritiesInfo` | `symbol, market, page, size` | `(*SecuritiesInfo, error)` | Security details |
 | `GetSecuritiesSummary` | `symbol, market, page, size` | `(*SecuritiesSummary, error)` | Summary of stock transactions |
+| `GetMasterData` | None | `([]MasterData, error)` | Query ceiling, floor, ref prices for today |
+| `GetMasterDataHistorical` | `fromDate, toDate` | `([]MasterData, error)` | Query ceiling, floor, ref prices for date range |
 
 ### 3.2 Account & Portfolio (`tradingClient.Account` & `tradingClient.Portfolio`)
 

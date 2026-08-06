@@ -3,9 +3,11 @@ package signature
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"math/big"
+	"sync"
 )
 
 type rsaKeyValue struct {
@@ -19,11 +21,19 @@ type rsaKeyValue struct {
 	D        string `xml:"D"`
 }
 
-var sha256DERPrefix = []byte{
-	0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
-	0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
-	0x00, 0x04, 0x20,
+type rsaParsedKey struct {
+	n, d *big.Int
 }
+
+var (
+	sha256DERPrefix = []byte{
+		0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
+		0x00, 0x04, 0x20,
+	}
+
+	keyCache sync.Map // privateKey string → *rsaParsedKey
+)
 
 func getRSAKey(privateKey string) (*big.Int, *big.Int, error) {
 	keyBytes, err := base64.StdEncoding.DecodeString(privateKey)
@@ -50,9 +60,22 @@ func getRSAKey(privateKey string) (*big.Int, *big.Int, error) {
 	return n, d, nil
 }
 
+func getRSAKeyCached(privateKey string) (*big.Int, *big.Int, error) {
+	if cached, ok := keyCache.Load(privateKey); ok {
+		k := cached.(*rsaParsedKey)
+		return k.n, k.d, nil
+	}
+	n, d, err := getRSAKey(privateKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	keyCache.Store(privateKey, &rsaParsedKey{n: n, d: d})
+	return n, d, nil
+}
+
 // Sign creates a PKCS#1 v1.5 SHA-256 signature.
 func Sign(data, privateKey string) (string, error) {
-	n, d, err := getRSAKey(privateKey)
+	n, d, err := getRSAKeyCached(privateKey)
 	if err != nil {
 		return "", err
 	}
@@ -83,5 +106,5 @@ func Sign(data, privateKey string) (string, error) {
 	sBytes := s.Bytes()
 	copy(sigBytes[keyLen-len(sBytes):], sBytes)
 
-	return fmt.Sprintf("%x", sigBytes), nil
+	return hex.EncodeToString(sigBytes), nil
 }

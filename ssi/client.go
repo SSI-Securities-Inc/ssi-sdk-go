@@ -79,9 +79,9 @@ func NewAuth(config *Config) *Auth {
 	}
 }
 
-// Authenticate obtains an access token. Pass otp="" for market-data-only access.
-func (a *Auth) Authenticate(otp string) (*auth.Token, error) {
-	return a.TokenManager.Authenticate(otp)
+// Authenticate obtains an access token using OTP code or Smart OTP transactionId.
+func (a *Auth) Authenticate(otp string, transactionID ...string) (*auth.Token, error) {
+	return a.TokenManager.Authenticate(otp, transactionID...)
 }
 
 // Refresh exchanges the current refresh token for a new access token.
@@ -94,9 +94,9 @@ func (a *Auth) RequestOTP() (map[string]interface{}, error) {
 	return a.TokenManager.RequestOTP()
 }
 
-// EnsureAuthenticated ensures a valid access token is available, renewing if needed.
-func (a *Auth) EnsureAuthenticated(otp string) (string, error) {
-	return a.TokenManager.EnsureAuthenticated(otp)
+// EnsureAuthenticated ensures a valid access token is available, renewing, authenticating with OTP, or polling Smart OTP as needed.
+func (a *Auth) EnsureAuthenticated(otp string, transactionID ...string) (string, error) {
+	return a.TokenManager.EnsureAuthenticated(otp, transactionID...)
 }
 
 // AccessToken returns the current bearer token string, or "" if not authenticated.

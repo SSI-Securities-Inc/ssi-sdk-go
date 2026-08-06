@@ -48,7 +48,14 @@ type RestClient struct {
 
 func NewRestClient(config *ssi.Config) *RestClient {
 	logger.SetLevelFromString(config.LogLevel)
-	transport := &http.Transport{}
+	transport := &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     120 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+		ForceAttemptHTTP2:   true,
+		DisableCompression:  true,
+	}
 	if config.Proxy != "" {
 		proxyURL, err := url.Parse(config.Proxy)
 		if err == nil {

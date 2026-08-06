@@ -20,6 +20,7 @@ const (
 	epDataIndexSummary      = "/api/v3/data/indexSummary"
 	epDataSecuritiesByBoard = "/api/v3/data/securitiesByBoard"
 	epDataSecuritiesSummary = "/api/v3/data/securitiesSummary"
+	epDataMasterData        = "/api/v3/data/masterdata"
 )
 
 // Service provides market data operations.
@@ -471,4 +472,50 @@ func (s *Service) GetSecuritiesSummaryByIndexHistorical(index, fromDate, toDate 
 		return nil, err
 	}
 	return s.getSecuritiesSummary(fromDate, toDate, "", index, defaultPage, defaultSize)
+}
+
+func (s *Service) GetMasterData() ([]MasterData, error) {
+	today := util.TodayDateStr()
+	return s.GetMasterDataHistorical(today, today)
+}
+
+func (s *Service) GetMasterDataHistorical(fromDate, toDate string) ([]MasterData, error) {
+	if err := ssi.RequireNonEmpty(fromDate, "fromDate"); err != nil {
+		return nil, err
+	}
+	if err := ssi.RequireNonEmpty(toDate, "toDate"); err != nil {
+		return nil, err
+	}
+
+	var items []MasterData
+	page := defaultPage
+
+	for {
+		params := map[string]string{
+			"From":      fromDate,
+			"To":        toDate,
+			"pageIndex": fmt.Sprintf("%d", page),
+			"pageSize":  fmt.Sprintf("%d", defaultSize),
+		}
+
+		data, err := s.rest.Get(epDataMasterData, params, nil)
+		if err != nil {
+			marketLog.Error("Error fetching master data: %v", err)
+			return nil, err
+		}
+
+		rawItems, _ := data["data"].([]interface{})
+		items = append(items, MasterDataFromList(rawItems)...)
+
+		totalPage := util.ToInt(data["totalPage"])
+		if totalPage == 0 {
+			totalPage = 1
+		}
+		if page >= totalPage || len(rawItems) == 0 {
+			break
+		}
+		page++
+	}
+
+	return items, nil
 }

@@ -127,15 +127,12 @@ if err != nil {
     log.Fatal(err)
 }
 log.Printf("Access token: %s", token.AccessToken)
+
+// Smart OTP Push Notification: truyền transactionID thu được từ RequestOTP
+token, err := auth.TokenManager.AuthenticateSmartOTP("TRANSACTION_ID")
 ```
 
-### 1.2. Xác thực không cần OTP (chỉ dùng Data)
-
-```go
-token, err := auth.Authenticate("") // truyền chuỗi rỗng
-```
-
-### 1.3. Yêu cầu gửi OTP
+### 1.2. Yêu cầu gửi OTP
 
 ```go
 result, err := auth.RequestOTP()
@@ -143,6 +140,30 @@ if err != nil {
     log.Fatal(err)
 }
 log.Println(result)
+```
+
+**Tài khoản đã kích hoạt Smart OTP có 2 cách để xác thực:**
+
+1. **Approve trên app** — gọi `RequestOTP()` để bắn yêu cầu lên thiết bị,
+   lấy `transactionId`, rồi dùng `EnsureAuthenticated("", transactionId)` để
+   SDK tự poll cho đến khi user bấm approve.
+2. **Lấy mã trực tiếp trên app** — mở app Smart OTP, đọc mã hiển thị sẵn, rồi
+   điền thẳng mã đó vào `EnsureAuthenticated("123456")` (hoặc `Authenticate("123456")`)
+   — **không cần** gọi `RequestOTP()` trước.
+
+### 1.3. Tự động đảm bảo xác thực (EnsureAuthenticated)
+
+```go
+// 1) Refresh nếu có refresh token còn dùng được — không cần otp/transactionID
+accessToken, err := auth.EnsureAuthenticated("")
+
+// 2) OTP thường (SMS/email) hoặc mã Smart OTP lấy trực tiếp trên app
+accessToken, err := auth.EnsureAuthenticated("222222")
+
+// 3) Smart OTP dạng push-approval (truyền transactionID lấy từ RequestOTP)
+otpResult, _ := auth.RequestOTP()
+// Lấy transactionID từ otpResult["data"]
+accessToken, err := auth.EnsureAuthenticated("", transactionID)
 ```
 
 ### 1.4. Làm mới token
@@ -288,6 +309,22 @@ summary, err := data.MarketData.GetSecuritiesSummary("SSI")
 summary, err := data.MarketData.GetSecuritiesSummaryHistorical("SSI", "2026/03/01", "2026/03/31")
 summary, err := data.MarketData.GetSecuritiesSummaryByIndex("VN30")
 summary, err := data.MarketData.GetSecuritiesSummaryByIndexHistorical("VN30", "2026/03/01", "2026/03/31")
+```
+
+### 3.6. Master Data (giá trần/sàn/tham chiếu)
+
+SDK tự động phân trang để lấy đầy đủ tất cả các mã:
+
+```go
+// Hôm nay
+masterData, err := data.MarketData.GetMasterData()
+
+// Khoảng ngày tự chọn
+masterHist, err := data.MarketData.GetMasterDataHistorical("2026/08/05", "2026/08/06")
+
+for _, item := range masterData {
+    fmt.Printf("%s %s: trần=%.2f sàn=%.2f TC=%.2f\n", item.Board, item.Symbol, item.Ceiling, item.Floor, item.RefPrice)
+}
 ```
 
 ---

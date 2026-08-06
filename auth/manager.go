@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"time"
 
 	ssi "github.com/SSI-Securities-Inc/ssi-sdk-go/v3"
@@ -100,7 +101,7 @@ func (tm *TokenManager) Refresh() (*Token, error) {
 	return tm.token, nil
 }
 
-func (tm *TokenManager) Authenticate(otp string) (*Token, error) {
+func (tm *TokenManager) Authenticate(otp string, transactionID ...string) (*Token, error) {
 	if tm.apiKey == "" || tm.apiSecret == "" {
 		return nil, ssi.NewAuthenticationError("api_key and api_secret are required for authentication", "", 0, nil)
 	}
@@ -111,6 +112,9 @@ func (tm *TokenManager) Authenticate(otp string) (*Token, error) {
 	}
 	if otp != "" {
 		body["otp"] = otp
+	}
+	if len(transactionID) > 0 && transactionID[0] != "" {
+		body["transactionId"] = transactionID[0]
 	}
 
 	data, err := tm.rest.Post(epAccessToken, body, nil, nil)
@@ -159,7 +163,27 @@ func (tm *TokenManager) RequestOTP() (map[string]interface{}, error) {
 	return data, nil
 }
 
-func (tm *TokenManager) EnsureAuthenticated(otp string) (string, error) {
+func (tm *TokenManager) PollSmartOTP(transactionID string, interval time.Duration, maxRetries int) (*Token, error) {
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		tok, err := tm.Authenticate("", transactionID)
+		if err == nil {
+			return tok, nil
+		}
+		if attempt >= maxRetries {
+			return nil, ssi.NewAuthenticationError(
+				fmt.Sprintf("Smart OTP approval not confirmed after %d retries: %v", maxRetries, err),
+				"",
+				401,
+				nil,
+			)
+		}
+		authLog.Info("Smart OTP pending approval (attempt %d/%d), retrying in %v...", attempt, maxRetries, interval)
+		time.Sleep(interval)
+	}
+	return nil, ssi.NewAuthenticationError("Smart OTP polling failed", "", 401, nil)
+}
+
+func (tm *TokenManager) EnsureAuthenticated(otp string, transactionID ...string) (string, error) {
 	if tm.token == nil || tm.IsTokenExpired() {
 		if tm.HasRefreshToken() {
 			if _, err := tm.Refresh(); err != nil {
@@ -169,8 +193,12 @@ func (tm *TokenManager) EnsureAuthenticated(otp string) (string, error) {
 			if _, err := tm.Authenticate(otp); err != nil {
 				return "", err
 			}
+		} else if len(transactionID) > 0 && transactionID[0] != "" {
+			if _, err := tm.PollSmartOTP(transactionID[0], 5*time.Second, 6); err != nil {
+				return "", err
+			}
 		} else {
-			return "", ssi.NewAuthenticationError("OTP is required to authenticate — no refresh token available", "", 0, nil)
+			return "", ssi.NewAuthenticationError("OTP or Smart OTP transactionId is required to authenticate — no refresh token available", "", 0, nil)
 		}
 	}
 	return tm.AccessToken(), nil
