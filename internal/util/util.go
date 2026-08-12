@@ -139,20 +139,28 @@ func ConvertToDatetimeStr(t time.Time) string {
 const idAlphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const idSize = 20
 
+var (
+	idMask int
+	idStep int
+)
+
+func init() {
+	alphabetLen := len(idAlphabet)
+	idMask = 1
+	if alphabetLen > 1 {
+		idMask = (2 << int(math.Log(float64(alphabetLen-1))/math.Log(2))) - 1
+	}
+	idStep = int(math.Ceil(1.6 * float64(idMask) * float64(idSize) / float64(alphabetLen)))
+}
+
 func GenerateRequestID() string {
 	alphabetLen := len(idAlphabet)
-	mask := 1
-	if alphabetLen > 1 {
-		mask = (2 << int(math.Log(float64(alphabetLen-1))/math.Log(2))) - 1
-	}
-	step := int(math.Ceil(1.6 * float64(mask) * float64(idSize) / float64(alphabetLen)))
-
 	result := make([]byte, 0, idSize)
 	for {
-		randomBytes := make([]byte, step)
+		randomBytes := make([]byte, idStep)
 		_, _ = rand.Read(randomBytes)
 		for _, b := range randomBytes {
-			randomByte := int(b) & mask
+			randomByte := int(b) & idMask
 			if randomByte < alphabetLen {
 				result = append(result, idAlphabet[randomByte])
 				if len(result) == idSize {
