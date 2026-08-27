@@ -41,6 +41,7 @@ type EquityAccountBalance struct {
 	AdvanceCashT0    float64 `json:"advanceCashT0"`
 	AdvanceCashT1    float64 `json:"advanceCashT1"`
 	HoldSubscription float64 `json:"holdSubscription"`
+	Dividend         float64 `json:"dividend"`
 }
 
 func EquityAccountBalanceFromMap(data map[string]interface{}) *EquityAccountBalance {
@@ -77,9 +78,9 @@ func EquityAccountBalanceFromMap(data map[string]interface{}) *EquityAccountBala
 		AdvanceCashT0:    util.ToFloat64(data["advanceCashT0"]),
 		AdvanceCashT1:    util.ToFloat64(data["advanceCashT1"]),
 		HoldSubscription: util.ToFloat64(data["holdSubscription"]),
+		Dividend:         util.ToFloat64(data["dividend"]),
 	}
 }
-
 
 // DerivativeAccountBalance is derivative account balance information.
 type DerivativeAccountBalance struct {

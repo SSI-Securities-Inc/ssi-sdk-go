@@ -884,6 +884,8 @@ Package: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market`
 | `ICBName` | `string` | Tên ngành ICB |
 | `IIndex` | `float64` | Chỉ số I |
 | `INAV` | `float64` | NAV (ETF) |
+| `OpenInterest` | `float64` | Khối lượng mở (phái sinh) |
+| `SettlementPrice` | `float64` | Giá thanh toán (phái sinh) |
 
 **`market.SecuritiesSummary`** — Tổng hợp chứng khoán
 
@@ -904,6 +906,16 @@ Package: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market`
 | `TotalTradeBuy` | `float64` | Giá trị mua |
 | `TotalSell` | `int` | Tổng KL bán |
 | `TotalTradeSell` | `float64` | Giá trị bán |
+| `TotalForeignBuy` | `int` | KL mua khối ngoại |
+| `TotalForeignBuyValue` | `float64` | GT mua khối ngoại |
+| `TotalForeignSell` | `int` | KL bán khối ngoại |
+| `TotalForeignSellValue` | `float64` | GT bán khối ngoại |
+| `RemainForeignRoom` | `int` | Room ngoại còn lại |
+| `TotalForeignRoom` | `int` | Tổng room ngoại |
+| `TotalDeal` | `int` | KL giao dịch thỏa thuận |
+| `TotalDealValue` | `float64` | GT giao dịch thỏa thuận |
+| `OpenInterest` | `float64` | Khối lượng mở (phái sinh) |
+| `SettlementPrice` | `float64` | Giá thanh toán (phái sinh) |
 
 #### Portfolio
 
@@ -912,11 +924,11 @@ Package: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market`
 | Trường | Kiểu | Mô tả |
 |--------|------|-------|
 | `AccountNo` | `string` | Số tài khoản |
-| `AvailableCash` | `float64` | Tiền mặt khả dụng |
+| `AccountBalance` | `float64` | Số dư tài khoản |
 | `TotalDebt` | `float64` | Tổng nợ |
 | `InterestLoan` | `float64` | Lãi vay |
 | `OverdueFeeLoan` | `float64` | Phí vay quá hạn |
-| `Withdrawal` | `float64` | Rút tiền |
+| `Withdrawable` | `float64` | Tiền rút được |
 | `OnHoldCash` | `float64` | Tiền tạm giữ |
 | `SellUnmatched` | `float64` | Bán chưa khớp |
 | `SellT0` / `SellT1` / `SellT2` | `float64` | Bán T+0/1/2 |
@@ -924,12 +936,7 @@ Package: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market`
 | `BuyT0` / `BuyT1` / `BuyT2` | `float64` | Mua T+0/1/2 |
 | `AdvanceCashT0` / `AdvanceCashT1` | `float64` | Ứng trước T+0/1 |
 | `HoldSubscription` | `float64` | Giữ đăng ký |
-| `BankBalance` | `float64` | Số dư ngân hàng |
-| `Dividend` / `DividendMargin` | `float64` | Cổ tức |
-| `BlockCash` | `float64` | Tiền phong toả |
-| `InterestCash` | `float64` | Lãi tiền gửi |
-| `LimitT0` | `float64` | Hạn mức T+0 |
-| `TermDeposit` | `float64` | Tiền gửi kỳ hạn |
+| `Dividend` | `float64` | Cổ tức chờ về/đã ghi nhận |
 
 **`portfolio.DerivativeAccountBalance`** — Số dư tài khoản phái sinh
 

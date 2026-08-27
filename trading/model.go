@@ -9,7 +9,6 @@ import (
 	"github.com/SSI-Securities-Inc/ssi-sdk-go/v3/internal/util"
 )
 
-
 // PlaceOrderRequest is the payload for placing a new order.
 type PlaceOrderRequest struct {
 	AccountNo       string    `json:"accountNo"`
@@ -251,8 +250,8 @@ type FCOInfo struct {
 	PriceSlip       float64    `json:"priceSlip"`
 	Symbol          string     `json:"symbol"`
 	Type            FCOType    `json:"type"`
-	FromDate        string     `json:"fromDate"`
-	ToDate          string     `json:"toDate"`
+	FromDate        string     `json:"from"`
+	ToDate          string     `json:"to"`
 	MatchedQuantity int        `json:"matchedQuantity"`
 	IsPlaceOrder    bool       `json:"isPlaceOrder"`
 	Status          FCOStatus  `json:"status"`
@@ -278,8 +277,8 @@ func FCOInfoFromMap(data map[string]interface{}) *FCOInfo {
 		PriceSlip:       util.ToFloat64(data["priceSlip"]),
 		Symbol:          util.ToStr(data["symbol"]),
 		Type:            FCOType(util.ToStr(data["type"])),
-		FromDate:        util.ToStr(data["fromDate"]),
-		ToDate:          util.ToStr(data["toDate"]),
+		FromDate:        util.ToStr(data["from"]),
+		ToDate:          util.ToStr(data["to"]),
 		MatchedQuantity: util.ToInt(data["matchedQuantity"]),
 		IsPlaceOrder:    util.ToBool(data["isPlaceOrder"]),
 		Status:          FCOStatus(util.ToStr(data["status"])),
@@ -303,16 +302,16 @@ func FCOInfoSliceFromList(raw interface{}) []*FCOInfo {
 }
 
 type FCOListRequest struct {
-	AccountNo     string      `json:"accountNo"`
-	FCOID         string      `json:"fcoId,omitempty"`
-	Type          FCOType     `json:"type,omitempty"`
-	ProcessStatus FCOStatus   `json:"processStatus,omitempty"`
-	Symbol        string      `json:"symbol,omitempty"`
-	Side          OrderSide   `json:"side,omitempty"`
-	FromDate      string      `json:"from,omitempty"`
-	ToDate        string      `json:"to,omitempty"`
-	PageIndex     int         `json:"pageIndex,omitempty"`
-	PageSize      int         `json:"pageSize,omitempty"`
+	AccountNo     string    `json:"accountNo"`
+	FCOID         string    `json:"fcoId,omitempty"`
+	Type          FCOType   `json:"type,omitempty"`
+	ProcessStatus FCOStatus `json:"processStatus,omitempty"`
+	Symbol        string    `json:"symbol,omitempty"`
+	Side          OrderSide `json:"side,omitempty"`
+	FromDate      string    `json:"from,omitempty"`
+	ToDate        string    `json:"to,omitempty"`
+	PageIndex     int       `json:"pageIndex,omitempty"`
+	PageSize      int       `json:"pageSize,omitempty"`
 }
 
 func (r *FCOListRequest) ToMap() map[string]string {
@@ -398,24 +397,24 @@ func (r *FCOOrderBookRequest) ToMap() map[string]string {
 }
 
 type FCOOrder struct {
-	FCOID            string      `json:"fcoId"`
-	AccountNo        string      `json:"accountNo"`
-	Quantity         float64     `json:"quantity"`
-	Price            string      `json:"price"`
-	Symbol           string      `json:"symbol"`
-	Side             OrderSide   `json:"side"`
-	OrderType        OrderType   `json:"orderType"`
-	IsMainOrder      bool        `json:"isMainOrder"`
-	IsAttachedOrder  bool        `json:"isAttachedOrder"`
-	CreatedTime      string      `json:"createdTime"`
-	UpdatedTime      string      `json:"updatedTime"`
-	UniqueID         string      `json:"uniqueId"`
-	OrderID          string      `json:"orderId"`
-	MatchedQuantity  float64     `json:"matchedQuantity"`
-	OSQuantity       float64     `json:"osQuantity"`
-	AvgPrice         float64     `json:"avgPrice"`
-	Status           OrderStatus `json:"status"`
-	Detail           string      `json:"detail"`
+	FCOID           string      `json:"fcoId"`
+	AccountNo       string      `json:"accountNo"`
+	Quantity        float64     `json:"quantity"`
+	Price           string      `json:"price"`
+	Symbol          string      `json:"symbol"`
+	Side            OrderSide   `json:"side"`
+	OrderType       OrderType   `json:"orderType"`
+	IsMainOrder     bool        `json:"isMainOrder"`
+	IsAttachedOrder bool        `json:"isAttachedOrder"`
+	CreatedTime     string      `json:"createdTime"`
+	UpdatedTime     string      `json:"updatedTime"`
+	UniqueID        string      `json:"uniqueId"`
+	OrderID         string      `json:"orderId"`
+	MatchedQuantity float64     `json:"matchedQuantity"`
+	OSQuantity      float64     `json:"osQuantity"`
+	AvgPrice        float64     `json:"avgPrice"`
+	Status          OrderStatus `json:"status"`
+	Detail          string      `json:"detail"`
 }
 
 func FCOOrderFromMap(data map[string]interface{}) *FCOOrder {
@@ -701,28 +700,28 @@ func (p *OCOParams) ToMap() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"accountNo":     p.AccountNo,
-		"type":          string(fcoType),
-		"symbol":        p.Symbol,
-		"side":          string(p.Side),
-		"quantity":      p.Quantity,
-		"from":          p.FromDate,
-		"to":            p.ToDate,
-		"tpActivePrice": p.TPActivePrice,
-		"slActivePrice": p.SLActivePrice,
-		"tpPrice":       tpPriceStr,
-		"slPrice":       slPriceStr,
-		"tpSlip":        p.TPSlip,
-		"slSlip":        p.SLSlip,
-		"deviceId":      deviceID,
-		"userAgent":     userAgent,
-		"price":         "MP",
-		"priceSlip":     0,
-		"stopPrice":     0,
-		"activePrice":   0,
+		"accountNo":      p.AccountNo,
+		"type":           string(fcoType),
+		"symbol":         p.Symbol,
+		"side":           string(p.Side),
+		"quantity":       p.Quantity,
+		"from":           p.FromDate,
+		"to":             p.ToDate,
+		"tpActivePrice":  p.TPActivePrice,
+		"slActivePrice":  p.SLActivePrice,
+		"tpPrice":        tpPriceStr,
+		"slPrice":        slPriceStr,
+		"tpSlip":         p.TPSlip,
+		"slSlip":         p.SLSlip,
+		"deviceId":       deviceID,
+		"userAgent":      userAgent,
+		"price":          "MP",
+		"priceSlip":      0,
+		"stopPrice":      0,
+		"activePrice":    0,
 		"trailingAmount": 0,
-		"operator":      "",
-		"code":          "",
+		"operator":       "",
+		"code":           "",
 	}
 }
 
@@ -829,4 +828,3 @@ func FCOCancelResponseFromMap(data map[string]interface{}) *FCOCancelResponse {
 		FCOID: util.ToStr(respData["fcoId"]),
 	}
 }
-

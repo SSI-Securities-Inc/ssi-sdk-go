@@ -1,3 +1,3 @@
 package ssisdk
 
-const Version = "3.2.0"
+const Version = "3.2.1"

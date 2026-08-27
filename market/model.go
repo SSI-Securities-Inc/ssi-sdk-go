@@ -252,6 +252,8 @@ type SecuritiesInfo struct {
 	ICBName            string  `json:"icbName,omitempty"`
 	IIndex             float64 `json:"iIndex,omitempty"`
 	INAV               float64 `json:"iNav,omitempty"`
+	OpenInterest       float64 `json:"openInterest,omitempty"`
+	SettlementPrice    float64 `json:"settlementPrice,omitempty"`
 }
 
 func SecuritiesInfoFromList(data []interface{}) []SecuritiesInfo {
@@ -278,6 +280,8 @@ func SecuritiesInfoFromList(data []interface{}) []SecuritiesInfo {
 			ICBName:            util.ToStr(m["icbName"]),
 			IIndex:             util.ToFloat64(m["iIndex"]),
 			INAV:               util.ToFloat64(m["iNav"]),
+			OpenInterest:       util.ToFloat64(m["openInterest"]),
+			SettlementPrice:    util.ToFloat64(m["settlementPrice"]),
 		}
 		if boardStr := util.ToStr(m["board"]); boardStr != "" {
 			b := Board(boardStr)
@@ -316,21 +320,31 @@ func (r *SecuritiesSummaryRequest) ToMap() map[string]string {
 
 // SecuritiesSummary is securities summary information.
 type SecuritiesSummary struct {
-	Symbol             string  `json:"symbol"`
-	TradingDate        string  `json:"tradingDate"`
-	PriceChange        float64 `json:"priceChange"`
-	PriceChangePercent float64 `json:"priceChangePercentage"`
-	OpenPrice          float64 `json:"open"`
-	HighPrice          float64 `json:"high"`
-	LowPrice           float64 `json:"low"`
-	ClosePrice         float64 `json:"close"`
-	AveragePrice       float64 `json:"average"`
-	TotalMatch         int     `json:"totalMatch"`
-	TotalMatchValue    float64 `json:"totalMatchValue"`
-	TotalBuy           int     `json:"totalBuy"`
-	TotalTradeBuy      float64 `json:"totalTradeBuy"`
-	TotalSell          int     `json:"totalSell"`
-	TotalTradeSell     float64 `json:"totalTradeSell"`
+	Symbol                string  `json:"symbol"`
+	TradingDate           string  `json:"tradingDate"`
+	PriceChange           float64 `json:"priceChange"`
+	PriceChangePercent    float64 `json:"priceChangePercentage"`
+	OpenPrice             float64 `json:"open"`
+	HighPrice             float64 `json:"high"`
+	LowPrice              float64 `json:"low"`
+	ClosePrice            float64 `json:"close"`
+	AveragePrice          float64 `json:"average"`
+	TotalMatch            int     `json:"totalMatch"`
+	TotalMatchValue       float64 `json:"totalMatchValue"`
+	TotalBuy              int     `json:"totalBuy"`
+	TotalTradeBuy         float64 `json:"totalTradeBuy"`
+	TotalSell             int     `json:"totalSell"`
+	TotalTradeSell        float64 `json:"totalTradeSell"`
+	TotalForeignBuy       int     `json:"totalForeignBuy"`
+	TotalForeignBuyValue  float64 `json:"totalForeignBuyValue"`
+	TotalForeignSell      int     `json:"totalForeignSell"`
+	TotalForeignSellValue float64 `json:"totalForeignSellValue"`
+	RemainForeignRoom     int     `json:"remainForeignRoom"`
+	TotalForeignRoom      int     `json:"totalForeignRoom"`
+	TotalDeal             int     `json:"totalDeal"`
+	TotalDealValue        float64 `json:"totalDealValue"`
+	OpenInterest          float64 `json:"openInterest"`
+	SettlementPrice       float64 `json:"settlementPrice"`
 }
 
 func SecuritiesSummaryFromList(data []interface{}) []SecuritiesSummary {
@@ -341,21 +355,31 @@ func SecuritiesSummaryFromList(data []interface{}) []SecuritiesSummary {
 			continue
 		}
 		result = append(result, SecuritiesSummary{
-			Symbol:             util.ToStr(m["symbol"]),
-			TradingDate:        util.ToStr(m["tradingDate"]),
-			PriceChange:        util.ToFloat64(m["priceChange"]),
-			PriceChangePercent: util.ToFloat64(m["priceChangePercentage"]),
-			OpenPrice:          util.ToFloat64(m["open"]),
-			HighPrice:          util.ToFloat64(m["high"]),
-			LowPrice:           util.ToFloat64(m["low"]),
-			ClosePrice:         util.ToFloat64(m["close"]),
-			AveragePrice:       util.ToFloat64(m["average"]),
-			TotalMatch:         util.ToInt(m["totalMatch"]),
-			TotalMatchValue:    util.ToFloat64(m["totalMatchValue"]),
-			TotalBuy:           util.ToInt(m["totalBuy"]),
-			TotalTradeBuy:      util.ToFloat64(m["totalTradeBuy"]),
-			TotalSell:          util.ToInt(m["totalSell"]),
-			TotalTradeSell:     util.ToFloat64(m["totalTradeSell"]),
+			Symbol:                util.ToStr(m["symbol"]),
+			TradingDate:           util.ToStr(m["tradingDate"]),
+			PriceChange:           util.ToFloat64(m["priceChange"]),
+			PriceChangePercent:    util.ToFloat64(m["priceChangePercentage"]),
+			OpenPrice:             util.ToFloat64(m["open"]),
+			HighPrice:             util.ToFloat64(m["high"]),
+			LowPrice:              util.ToFloat64(m["low"]),
+			ClosePrice:            util.ToFloat64(m["close"]),
+			AveragePrice:          util.ToFloat64(m["average"]),
+			TotalMatch:            util.ToInt(m["totalMatch"]),
+			TotalMatchValue:       util.ToFloat64(m["totalMatchValue"]),
+			TotalBuy:              util.ToInt(m["totalBuy"]),
+			TotalTradeBuy:         util.ToFloat64(m["totalTradeBuy"]),
+			TotalSell:             util.ToInt(m["totalSell"]),
+			TotalTradeSell:        util.ToFloat64(m["totalTradeSell"]),
+			TotalForeignBuy:       util.ToInt(m["totalForeignBuy"]),
+			TotalForeignBuyValue:  util.ToFloat64(m["totalForeignBuyValue"]),
+			TotalForeignSell:      util.ToInt(m["totalForeignSell"]),
+			TotalForeignSellValue: util.ToFloat64(m["totalForeignSellValue"]),
+			RemainForeignRoom:     util.ToInt(m["remainForeignRoom"]),
+			TotalForeignRoom:      util.ToInt(m["totalForeignRoom"]),
+			TotalDeal:             util.ToInt(m["totalDeal"]),
+			TotalDealValue:        util.ToFloat64(m["totalDealValue"]),
+			OpenInterest:          util.ToFloat64(m["openInterest"]),
+			SettlementPrice:       util.ToFloat64(m["settlementPrice"]),
 		})
 	}
 	return result
