@@ -1,16 +1,54 @@
 package portfolio
 
 import (
-	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/SSI-Securities-Inc/ssi-sdk-go/v3/internal/util"
 	"github.com/SSI-Securities-Inc/ssi-sdk-go/v3/trading"
 )
 
+// num reads the first present key as a float64 (0 when none is present or numeric).
+func num(m map[string]interface{}, keys ...string) float64 {
+	return util.ToFloat64(util.Pick(m, keys...))
+}
+
+func whole(m map[string]interface{}, keys ...string) int {
+	return util.ToInt(util.Pick(m, keys...))
+}
+
+func text(m map[string]interface{}, keys ...string) string {
+	return util.ToStr(util.Pick(m, keys...))
+}
+
+func rowMaps(v interface{}) []map[string]interface{} {
+	list, ok := v.([]interface{})
+	if !ok {
+		return nil
+	}
+	rows := make([]map[string]interface{}, 0, len(list))
+	for _, item := range list {
+		if m, ok := item.(map[string]interface{}); ok {
+			rows = append(rows, m)
+		}
+	}
+	return rows
+}
+
+// nonEmptyMap returns v as a map only when it holds at least one key: an empty section counts as
+// absent.
+func nonEmptyMap(v interface{}) (map[string]interface{}, bool) {
+	m, ok := v.(map[string]interface{})
+	if !ok || len(m) == 0 {
+		return nil, false
+	}
+	return m, true
+}
+
 // AccountBalanceRequest is the account balance request.
 type AccountBalanceRequest struct {
-	ClientID  string `json:"clientId"`
-	AccountNo string `json:"accountNo,omitempty"`
+	ClientID  string
+	AccountNo string
 }
 
 func (r *AccountBalanceRequest) ToMap() map[string]string {
@@ -23,135 +61,137 @@ func (r *AccountBalanceRequest) ToMap() map[string]string {
 
 // EquityAccountBalance is equity account balance information.
 type EquityAccountBalance struct {
-	AccountNo        string  `json:"accountNo"`
-	AccountBalance   float64 `json:"accountBalance"`
-	TotalDebt        float64 `json:"totalDebt"`
-	InterestLoan     float64 `json:"interestLoan"`
-	OverdueFeeLoan   float64 `json:"overdueFeeLoan"`
-	Withdrawable     float64 `json:"withdrawable"`
-	OnHoldCash       float64 `json:"onHoldCash"`
-	SellUnmatched    float64 `json:"sellUnmatched"`
-	SellT0           float64 `json:"sellT0"`
-	SellT1           float64 `json:"sellT1"`
-	SellT2           float64 `json:"sellT2"`
-	BuyUnmatched     float64 `json:"buyUnmatched"`
-	BuyT0            float64 `json:"buyT0"`
-	BuyT1            float64 `json:"buyT1"`
-	BuyT2            float64 `json:"buyT2"`
-	AdvanceCashT0    float64 `json:"advanceCashT0"`
-	AdvanceCashT1    float64 `json:"advanceCashT1"`
-	HoldSubscription float64 `json:"holdSubscription"`
-	Dividend         float64 `json:"dividend"`
+	AccountNo        string
+	AccountBalance   float64
+	TotalDebt        float64
+	InterestLoan     float64
+	OverdueFeeLoan   float64
+	Withdrawable     float64
+	OnHoldCash       float64
+	SellUnmatched    float64
+	SellT0           float64
+	SellT1           float64
+	SellT2           float64
+	BuyUnmatched     float64
+	BuyT0            float64
+	BuyT1            float64
+	BuyT2            float64
+	AdvanceCashT0    float64
+	AdvanceCashT1    float64
+	HoldSubscription float64
+	Dividend         float64
 }
 
 func EquityAccountBalanceFromMap(data map[string]interface{}) *EquityAccountBalance {
-	if data == nil {
-		return &EquityAccountBalance{}
-	}
-
-	accBal := util.ToFloat64(data["accountBalance"])
-	if accBal == 0 {
-		accBal = util.ToFloat64(data["availableCash"])
-	}
-
-	withdrawable := util.ToFloat64(data["withdrawable"])
-	if withdrawable == 0 {
-		withdrawable = util.ToFloat64(data["withdrawal"])
-	}
-
 	return &EquityAccountBalance{
-		AccountNo:        util.ToStr(data["accountNo"]),
-		AccountBalance:   accBal,
-		TotalDebt:        util.ToFloat64(data["totalDebt"]),
-		InterestLoan:     util.ToFloat64(data["interestLoan"]),
-		OverdueFeeLoan:   util.ToFloat64(data["overdueFeeLoan"]),
-		Withdrawable:     withdrawable,
-		OnHoldCash:       util.ToFloat64(data["onHoldCash"]),
-		SellUnmatched:    util.ToFloat64(data["sellUnmatched"]),
-		SellT0:           util.ToFloat64(data["sellT0"]),
-		SellT1:           util.ToFloat64(data["sellT1"]),
-		SellT2:           util.ToFloat64(data["sellT2"]),
-		BuyUnmatched:     util.ToFloat64(data["buyUnmatched"]),
-		BuyT0:            util.ToFloat64(data["buyT0"]),
-		BuyT1:            util.ToFloat64(data["buyT1"]),
-		BuyT2:            util.ToFloat64(data["buyT2"]),
-		AdvanceCashT0:    util.ToFloat64(data["advanceCashT0"]),
-		AdvanceCashT1:    util.ToFloat64(data["advanceCashT1"]),
-		HoldSubscription: util.ToFloat64(data["holdSubscription"]),
-		Dividend:         util.ToFloat64(data["dividend"]),
+		AccountNo:        text(data, "accountNo"),
+		AccountBalance:   num(data, "accountBalance"),
+		TotalDebt:        num(data, "totalDebt"),
+		InterestLoan:     num(data, "interestLoan"),
+		OverdueFeeLoan:   num(data, "overdueFeeLoan"),
+		Withdrawable:     num(data, "withdrawable"),
+		OnHoldCash:       num(data, "onHoldCash"),
+		SellUnmatched:    num(data, "sellUnmatched"),
+		SellT0:           num(data, "sellT0"),
+		SellT1:           num(data, "sellT1"),
+		SellT2:           num(data, "sellT2"),
+		BuyUnmatched:     num(data, "buyUnmatched"),
+		BuyT0:            num(data, "buyT0"),
+		BuyT1:            num(data, "buyT1"),
+		BuyT2:            num(data, "buyT2"),
+		AdvanceCashT0:    num(data, "advancedCashT0", "advanceCashT0"),
+		AdvanceCashT1:    num(data, "advancedCashT1", "advanceCashT1"),
+		HoldSubscription: num(data, "holdSubscription"),
+		Dividend:         num(data, "dividend"),
 	}
 }
 
-// DerivativeAccountBalance is derivative account balance information.
+// DerivativeAccountBalance is derivative account balance information. The two withdrawable
+// fields were named CashWithdrawableSSI/VSDC before 3.3.0; the server key is read under both
+// names.
 type DerivativeAccountBalance struct {
-	AccountNo            string  `json:"accountNo"`
-	AccountBalance       float64 `json:"accountBalance"`
-	Fee                  float64 `json:"fee"`
-	Commission           float64 `json:"commission"`
-	Interest             float64 `json:"interest"`
-	ExtInterest          float64 `json:"extInterest"`
-	Loan                 float64 `json:"loan"`
-	DeliveryAmount       float64 `json:"deliveryAmount"`
-	FloatingPL           float64 `json:"floatingPL"`
-	TradingPL            float64 `json:"tradingPL"`
-	TotalPL              float64 `json:"totalPL"`
-	Withdrawable         float64 `json:"withdrawable"`
-	CashSSI              float64 `json:"cashSSI"`
-	ValidNonCashSSI      float64 `json:"validNonCashSSI"`
-	CashWithdrawableSSI  float64 `json:"cashWithdrawableSSI"`
-	CashVSDC             float64 `json:"cashVSDC"`
-	ValidNonCashVSDC     float64 `json:"validNonCashVSDC"`
-	CashWithdrawableVSDC float64 `json:"cashWithdrawableVSDC"`
+	AccountNo        string
+	AccountBalance   float64
+	Fee              float64
+	Commission       float64
+	Interest         float64
+	ExtInterest      float64
+	Loan             float64
+	DeliveryAmount   float64
+	FloatingPL       float64
+	TradingPL        float64
+	TotalPL          float64
+	Withdrawable     float64
+	CashSSI          float64
+	ValidNonCashSSI  float64
+	WithdrawableSSI  float64
+	CashVSDC         float64
+	ValidNonCashVSDC float64
+	WithdrawableVSDC float64
 }
+
+// CashWithdrawableSSI is the pre-3.3.0 name of WithdrawableSSI.
+//
+// Deprecated: use WithdrawableSSI.
+func (b *DerivativeAccountBalance) CashWithdrawableSSI() float64 { return b.WithdrawableSSI }
+
+// CashWithdrawableVSDC is the pre-3.3.0 name of WithdrawableVSDC.
+//
+// Deprecated: use WithdrawableVSDC.
+func (b *DerivativeAccountBalance) CashWithdrawableVSDC() float64 { return b.WithdrawableVSDC }
 
 func DerivativeAccountBalanceFromMap(data map[string]interface{}) *DerivativeAccountBalance {
 	return &DerivativeAccountBalance{
-		AccountNo:            util.ToStr(data["accountNo"]),
-		AccountBalance:       util.ToFloat64(data["accountBalance"]),
-		Fee:                  util.ToFloat64(data["fee"]),
-		Commission:           util.ToFloat64(data["commission"]),
-		Interest:             util.ToFloat64(data["interest"]),
-		ExtInterest:          util.ToFloat64(data["extInterest"]),
-		Loan:                 util.ToFloat64(data["loan"]),
-		DeliveryAmount:       util.ToFloat64(data["deliveryAmount"]),
-		FloatingPL:           util.ToFloat64(data["floatingPL"]),
-		TradingPL:            util.ToFloat64(data["tradingPL"]),
-		TotalPL:              util.ToFloat64(data["totalPL"]),
-		Withdrawable:         util.ToFloat64(data["withdrawable"]),
-		CashSSI:              util.ToFloat64(data["cashSSI"]),
-		ValidNonCashSSI:      util.ToFloat64(data["validNonCashSSI"]),
-		CashWithdrawableSSI:  util.ToFloat64(data["cashWithdrawableSSI"]),
-		CashVSDC:             util.ToFloat64(data["cashVSDC"]),
-		ValidNonCashVSDC:     util.ToFloat64(data["validNonCashVSDC"]),
-		CashWithdrawableVSDC: util.ToFloat64(data["cashWithdrawableVSDC"]),
+		AccountNo:        text(data, "accountNo"),
+		AccountBalance:   num(data, "accountBalance"),
+		Fee:              num(data, "fee"),
+		Commission:       num(data, "commission"),
+		Interest:         num(data, "interest"),
+		ExtInterest:      num(data, "extInterest"),
+		Loan:             num(data, "loan"),
+		DeliveryAmount:   num(data, "deliveryAmount"),
+		FloatingPL:       num(data, "floatingPL"),
+		TradingPL:        num(data, "tradingPL"),
+		TotalPL:          num(data, "totalPL"),
+		Withdrawable:     num(data, "withdrawable"),
+		CashSSI:          num(data, "cashSSI"),
+		ValidNonCashSSI:  num(data, "validNonCashSSI"),
+		WithdrawableSSI:  num(data, "withdrawableSSI", "cashWithdrawableSSI"),
+		CashVSDC:         num(data, "cashVSDC"),
+		ValidNonCashVSDC: num(data, "validNonCashVSDC"),
+		WithdrawableVSDC: num(data, "withdrawableVSDC", "cashWithdrawableVSDC"),
 	}
 }
 
-// AccountBalance is account balance information.
+// AccountBalance is account balance information. A section the account does not have is nil.
 type AccountBalance struct {
-	Equity     *EquityAccountBalance     `json:"equity,omitempty"`
-	Derivative *DerivativeAccountBalance `json:"derivative,omitempty"`
+	Equity     *EquityAccountBalance
+	Derivative *DerivativeAccountBalance
 }
 
 func AccountBalanceFromMap(data map[string]interface{}) *AccountBalance {
 	ab := &AccountBalance{}
-	if eq, ok := data["equity"].(map[string]interface{}); ok {
+	if eq, ok := nonEmptyMap(data["equity"]); ok {
 		ab.Equity = EquityAccountBalanceFromMap(eq)
 	}
-	if der, ok := data["derivative"].(map[string]interface{}); ok {
+	if der, ok := nonEmptyMap(data["derivative"]); ok {
 		ab.Derivative = DerivativeAccountBalanceFromMap(der)
 	}
 	return ab
 }
 
-// PositionsRequest is positions request.
+// PositionsRequest is the positions request. querySummary is always sent explicitly.
 type PositionsRequest struct {
-	ClientID  string `json:"clientId"`
-	AccountNo string `json:"accountNo,omitempty"`
+	ClientID     string
+	AccountNo    string
+	QuerySummary bool
 }
 
 func (r *PositionsRequest) ToMap() map[string]string {
-	params := map[string]string{"clientId": r.ClientID}
+	params := map[string]string{
+		"clientId":     r.ClientID,
+		"querySummary": strconv.FormatBool(r.QuerySummary),
+	}
 	if r.AccountNo != "" {
 		params["accountNo"] = r.AccountNo
 	}
@@ -160,46 +200,46 @@ func (r *PositionsRequest) ToMap() map[string]string {
 
 // EquityPosition is equity position information.
 type EquityPosition struct {
-	AccountNo          string  `json:"accountNo"`
-	Symbol             string  `json:"symbol"`
-	Quantity           int     `json:"quantity"`
-	BlockQuantity      int     `json:"blockQuantity"`
-	DividendQuantity   int     `json:"dividendQuantity"`
-	BuyingQuantity     int     `json:"buyingQuantity"`
-	BoughtQuantity     int     `json:"boughtQuantity"`
-	SellingQuantity    int     `json:"sellingQuantity"`
-	SoldQuantity       int     `json:"soldQuantity"`
-	T1SellQuantity     int     `json:"t1SellQuantity"`
-	T2SellQuantity     int     `json:"t2SellQuantity"`
-	CostPrice          float64 `json:"costPrice"`
-	MortgageQuantity   int     `json:"mortgageQuantity"`
-	SellableQuantity   int     `json:"sellableQuantity"`
-	RestrictedQuantity int     `json:"restrictedQuantity"`
+	AccountNo          string
+	Symbol             string
+	Quantity           int
+	BlockQuantity      int
+	DividendQuantity   int
+	BuyingQuantity     int
+	BoughtQuantity     int
+	SellingQuantity    int
+	SoldQuantity       int
+	T1SellQuantity     int
+	T2SellQuantity     int
+	T1BuyQuantity      int
+	T2BuyQuantity      int
+	CostPrice          float64
+	MortgageQuantity   int
+	SellableQuantity   int
+	RestrictedQuantity int
 }
 
 func EquityPositionFromList(data []interface{}) []EquityPosition {
-	var result []EquityPosition
-	for _, item := range data {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
+	result := make([]EquityPosition, 0, len(data))
+	for _, m := range rowMaps(data) {
 		result = append(result, EquityPosition{
-			AccountNo:          util.ToStr(m["accountNo"]),
-			Symbol:             util.ToStr(m["symbol"]),
-			Quantity:           util.ToInt(m["quantity"]),
-			BlockQuantity:      util.ToInt(m["blockQuantity"]),
-			DividendQuantity:   util.ToInt(m["dividendQuantity"]),
-			BuyingQuantity:     util.ToInt(m["buyingQuantity"]),
-			BoughtQuantity:     util.ToInt(m["boughtQuantity"]),
-			SellingQuantity:    util.ToInt(m["sellingQuantity"]),
-			SoldQuantity:       util.ToInt(m["soldQuantity"]),
-			T1SellQuantity:     util.ToInt(m["t1SellQuantity"]),
-			T2SellQuantity:     util.ToInt(m["t2SellQuantity"]),
-			CostPrice:          util.ToFloat64(m["costPrice"]),
-			MortgageQuantity:   util.ToInt(m["mortgageQuantity"]),
-			SellableQuantity:   util.ToInt(m["sellableQuantity"]),
-			RestrictedQuantity: util.ToInt(m["restrictedQuantity"]),
+			AccountNo:          text(m, "accountNo"),
+			Symbol:             text(m, "symbol"),
+			Quantity:           whole(m, "quantity"),
+			BlockQuantity:      whole(m, "blockQuantity"),
+			DividendQuantity:   whole(m, "dividendQuantity"),
+			BuyingQuantity:     whole(m, "buyingQuantity"),
+			BoughtQuantity:     whole(m, "boughtQuantity"),
+			SellingQuantity:    whole(m, "sellingQuantity"),
+			SoldQuantity:       whole(m, "soldQuantity"),
+			T1SellQuantity:     whole(m, "t1SellQuantity"),
+			T2SellQuantity:     whole(m, "t2SellQuantity"),
+			T1BuyQuantity:      whole(m, "t1BuyQuantity"),
+			T2BuyQuantity:      whole(m, "t2BuyQuantity"),
+			CostPrice:          num(m, "costPrice"),
+			MortgageQuantity:   whole(m, "mortgageQuantity"),
+			SellableQuantity:   whole(m, "sellableQuantity"),
+			RestrictedQuantity: whole(m, "restrictedQuantity"),
 		})
 	}
 	return result
@@ -207,36 +247,38 @@ func EquityPositionFromList(data []interface{}) []EquityPosition {
 
 // DerivativePosition is derivative position information.
 type DerivativePosition struct {
-	AccountNo   string  `json:"accountNo"`
-	Symbol      string  `json:"symbol"`
-	Long        int     `json:"long"`
-	Short       int     `json:"short"`
-	Net         int     `json:"net"`
-	BidAvgPrice float64 `json:"bidAvgPrice"`
-	AskAvgPrice float64 `json:"askAvgPrice"`
-	TradePrice  float64 `json:"tradePrice"`
-	FloatingPL  float64 `json:"floatingPL"`
-	TradingPL   float64 `json:"tradingPL"`
+	AccountNo   string
+	Symbol      string
+	Long        int
+	Short       int
+	Net         int
+	BidAvgPrice float64
+	AskAvgPrice float64
+	TradePrice  float64
+	FloatingPL  float64
+	TradingPL   float64
 }
 
-func DerivativePositionFromList(data []interface{}) []DerivativePosition {
-	var result []DerivativePosition
-	for _, item := range data {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			continue
+// DerivativePositionFromList parses position rows. accountNo is attached to rows that carry no
+// accountNo of their own.
+func DerivativePositionFromList(data []interface{}, accountNo string) []DerivativePosition {
+	result := make([]DerivativePosition, 0, len(data))
+	for _, m := range rowMaps(data) {
+		acc := text(m, "accountNo")
+		if acc == "" {
+			acc = accountNo
 		}
 		result = append(result, DerivativePosition{
-			AccountNo:   util.ToStr(m["accountNo"]),
-			Symbol:      util.ToStr(m["symbol"]),
-			Long:        util.ToInt(m["long"]),
-			Short:       util.ToInt(m["short"]),
-			Net:         util.ToInt(m["net"]),
-			BidAvgPrice: util.ToFloat64(m["bidAvgPrice"]),
-			AskAvgPrice: util.ToFloat64(m["askAvgPrice"]),
-			TradePrice:  util.ToFloat64(m["tradePrice"]),
-			FloatingPL:  util.ToFloat64(m["floatingPL"]),
-			TradingPL:   util.ToFloat64(m["tradingPL"]),
+			AccountNo:   acc,
+			Symbol:      text(m, "symbol"),
+			Long:        whole(m, "long"),
+			Short:       whole(m, "short"),
+			Net:         whole(m, "net"),
+			BidAvgPrice: num(m, "bidAvgPrice"),
+			AskAvgPrice: num(m, "askAvgPrice"),
+			TradePrice:  num(m, "tradePrice"),
+			FloatingPL:  num(m, "floatingPL"),
+			TradingPL:   num(m, "tradingPL"),
 		})
 	}
 	return result
@@ -244,400 +286,482 @@ func DerivativePositionFromList(data []interface{}) []DerivativePosition {
 
 // AllDerivativePosition is derivatives position information.
 type AllDerivativePosition struct {
-	OpenPositions   []DerivativePosition `json:"derOpenPositions"`
-	ClosedPositions []DerivativePosition `json:"derClosePositions"`
+	OpenPositions   []DerivativePosition
+	ClosedPositions []DerivativePosition
+	AccountNo       string
 }
 
-func AllDerivativePositionFromMap(data map[string]interface{}) *AllDerivativePosition {
-	result := &AllDerivativePosition{}
-	if open, ok := data["derOpenPositions"].([]interface{}); ok {
-		result.OpenPositions = DerivativePositionFromList(open)
-	}
-	if closed, ok := data["derClosePositions"].([]interface{}); ok {
-		result.ClosedPositions = DerivativePositionFromList(closed)
+// AllDerivativePositionFromAny reads the server's {"derOpenPositions": [...],
+// "derClosePositions": [...]} object; a bare list is read as the open positions.
+func AllDerivativePositionFromAny(data interface{}, accountNo string) *AllDerivativePosition {
+	result := &AllDerivativePosition{AccountNo: accountNo}
+	switch v := data.(type) {
+	case []interface{}:
+		result.OpenPositions = DerivativePositionFromList(v, accountNo)
+	case map[string]interface{}:
+		if open, ok := v["derOpenPositions"].([]interface{}); ok {
+			result.OpenPositions = DerivativePositionFromList(open, accountNo)
+		}
+		if closed, ok := v["derClosePositions"].([]interface{}); ok {
+			result.ClosedPositions = DerivativePositionFromList(closed, accountNo)
+		}
 	}
 	return result
 }
 
-// Position is position information.
+// Position is position information. A section the account does not have is nil.
 type Position struct {
-	Equity     []EquityPosition       `json:"equity,omitempty"`
-	Derivative *AllDerivativePosition `json:"derivative,omitempty"`
+	Equity     []EquityPosition
+	Derivative *AllDerivativePosition
 }
 
-func PositionFromMap(data map[string]interface{}) *Position {
+// PositionFromMap parses the positions payload. The server's {"code": 204} marker yields an empty
+// Position. accountNo is attached to derivative positions that carry none.
+func PositionFromMap(data map[string]interface{}, accountNo string) *Position {
 	p := &Position{}
-	if eq, ok := data["equity"].([]interface{}); ok {
+	if data == nil || util.IsNoContent(data) {
+		return p
+	}
+	if eq, ok := data["equity"].([]interface{}); ok && len(eq) > 0 {
 		p.Equity = EquityPositionFromList(eq)
 	}
-	if der, ok := data["derivative"].(map[string]interface{}); ok {
-		p.Derivative = AllDerivativePositionFromMap(der)
+	switch der := data["derivative"].(type) {
+	case []interface{}:
+		if len(der) > 0 {
+			p.Derivative = AllDerivativePositionFromAny(der, accountNo)
+		}
+	case map[string]interface{}:
+		if len(der) > 0 {
+			p.Derivative = AllDerivativePositionFromAny(der, accountNo)
+		}
 	}
 	return p
 }
 
 // PPMMRRequest is PPMMR request.
 type PPMMRRequest struct {
-	AccountNo string `json:"accountNo"`
+	AccountNo string
 }
 
 func (r *PPMMRRequest) ToMap() map[string]string {
 	return map[string]string{"accountNo": r.AccountNo}
 }
 
-// EquityPPMMR is equity PPMMR information.
+// EquityPPMMR is equity purchasing power / maintenance margin information.
 type EquityPPMMR struct {
-	AccountNo            string  `json:"accountNo"`
-	Dividend             float64 `json:"dividend"`
-	LoanValue            float64 `json:"loanValue"`
-	TotalDebt            float64 `json:"totalDebt"`
-	Debt                 float64 `json:"debt"`
-	Liability            float64 `json:"liability"`
-	LiabilitySSI         float64 `json:"liabilitySSI"`
-	NetLiability         float64 `json:"netLiability"`
-	Fees                 float64 `json:"fees"`
-	InterestSSI          float64 `json:"interestSSI"`
-	InterestSPV          float64 `json:"interestSPV"`
-	Withdrawable         float64 `json:"withdrawable"`
-	EE                   float64 `json:"ee"`
-	EE50                 float64 `json:"ee50"`
-	EE60                 float64 `json:"ee60"`
-	EE70                 float64 `json:"ee70"`
-	EE80                 float64 `json:"ee80"`
-	EE90                 float64 `json:"ee90"`
-	Action               float64 `json:"action"`
-	ActionSSI            float64 `json:"actionSSI"`
-	Equity               float64 `json:"equity"`
-	EquitySSI            float64 `json:"equitySSI"`
-	EECash               float64 `json:"eeCash"`
-	HoldSubscription     float64 `json:"holdSubscription"`
-	BankBalance          float64 `json:"bankBalance"`
-	OnHoldCash           float64 `json:"onHoldCash"`
-	Doverdue             float64 `json:"doverdue"`
-	DoverdueSSI          float64 `json:"doverdueSSI"`
-	AccountBalance       float64 `json:"accountBalance"`
-	D                    float64 `json:"D"`
-	DSPV                 float64 `json:"dSPV"`
-	DSSI                 float64 `json:"dSSI"`
-	CIA                  float64 `json:"cia"`
-	CollateralAsset      float64 `json:"collateralAsset"`
-	CollateralAssetSSI   float64 `json:"collateralAssetSSI"`
-	TotalAssets          float64 `json:"totalAssets"`
-	TotalEquity          float64 `json:"totalEquity"`
-	TotalEquitySSI       float64 `json:"totalEquitySSI"`
-	LMV                  float64 `json:"lmv"`
-	LMVMargin            float64 `json:"lmvMargin"`
-	LMVMarginSSI         float64 `json:"lmvMarginSSI"`
-	CallLMV              float64 `json:"callLmv"`
-	ForceLMV             float64 `json:"forceLmv"`
-	CallLMVSSI           float64 `json:"callLmvSSI"`
-	ForceLMVSSI          float64 `json:"forceLmvSSI"`
-	LMVNonMarginable     float64 `json:"lmvNonMarginable"`
-	LMVNonMarginableSSI  float64 `json:"lmvNonMarginableSSI"`
-	PreLoan              float64 `json:"preLoan"`
-	MarginRatio          float64 `json:"marginRatio"`
-	MarginRatioSSI       float64 `json:"marginRatioSSI"`
-	PurchasingPower      float64 `json:"purchasingPower"`
-	EEOrigin             float64 `json:"eeOrigin"`
-	BuyUnmatched         float64 `json:"buyUnmatched"`
-	SellUnmatched        float64 `json:"sellUnmatched"`
-	BuyT0                float64 `json:"buyT0"`
-	SellT0               float64 `json:"sellT0"`
-	SellT1               float64 `json:"sellT1"`
-	SellT2               float64 `json:"sellT2"`
-	BuyT1                float64 `json:"buyT1"`
-	BuyT2                float64 `json:"buyT2"`
-	CreditLimit          float64 `json:"creditLimit"`
-	MarginCallLMVSold    float64 `json:"marginCallLmvSold"`
-	MarginCallLMVSoldSSI float64 `json:"marginCallLmvSoldSSI"`
-	MarginCall           float64 `json:"marginCall"`
-	MarginCallSSI        float64 `json:"marginCallSSI"`
-	CollateralA          float64 `json:"collateralA"`
-	CollateralNon        float64 `json:"collateralNon"`
-	CollateralASSI       float64 `json:"collateralASSI"`
-	CollateralNonSSI     float64 `json:"collateralNonSSI"`
-	CallMargin           float64 `json:"callMargin"`
-	CallForceSell        float64 `json:"callForceSell"`
-	CallMarginSSI        float64 `json:"callMarginSSI"`
-	CallForceSellSSI     float64 `json:"callForceSellSSI"`
-	AR                   float64 `json:"ar"`
+	AccountNo            string
+	Dividend             float64
+	LoanValue            float64
+	TotalDebt            float64
+	Debt                 float64
+	Liability            float64
+	LiabilitySSI         float64
+	NetLiability         float64
+	Fees                 float64
+	InterestSSI          float64
+	InterestSPV          float64
+	Withdrawable         float64
+	EE                   float64
+	EE50                 float64
+	EE60                 float64
+	EE70                 float64
+	EE80                 float64
+	EE90                 float64
+	Action               float64
+	ActionSSI            float64
+	Equity               float64
+	EquitySSI            float64
+	EECash               float64
+	HoldSubscription     float64
+	BankBalance          float64
+	OnHoldCash           float64
+	Doverdue             float64
+	DoverdueSSI          float64
+	AccountBalance       float64
+	D                    float64
+	DSPV                 float64
+	DSSI                 float64
+	CIA                  float64
+	CollateralAsset      float64
+	CollateralAssetSSI   float64
+	TotalAssets          float64
+	TotalEquity          float64
+	TotalEquitySSI       float64
+	LMV                  float64
+	LMVMargin            float64
+	LMVMarginSSI         float64
+	CallLMV              float64
+	ForceLMV             float64
+	CallLMVSSI           float64
+	ForceLMVSSI          float64
+	LMVNonMarginable     float64
+	LMVNonMarginableSSI  float64
+	PreLoan              float64
+	MarginRatio          float64
+	MarginRatioSSI       float64
+	PurchasingPower      float64
+	EEOrigin             float64
+	BuyUnmatched         float64
+	SellUnmatched        float64
+	BuyT0                float64
+	SellT0               float64
+	SellT1               float64
+	SellT2               float64
+	BuyT1                float64
+	BuyT2                float64
+	CreditLimit          float64
+	MarginCallLMVSold    float64
+	MarginCallLMVSoldSSI float64
+	MarginCall           float64
+	MarginCallSSI        float64
+	CollateralA          float64
+	CollateralNon        float64
+	CollateralASSI       float64
+	CollateralNonSSI     float64
+	CallMargin           float64
+	CallForceSell        float64
+	CallMarginSSI        float64
+	CallForceSellSSI     float64
+	AR                   float64
 }
 
+// EquityPPMMRFromMap reads the server key first and the alternative spelling second (the server
+// spells some keys with different casing between environments).
 func EquityPPMMRFromMap(data map[string]interface{}) *EquityPPMMR {
 	return &EquityPPMMR{
-		AccountNo:            util.ToStr(data["accountNo"]),
-		Dividend:             util.ToFloat64(data["dividend"]),
-		LoanValue:            util.ToFloat64(data["loanValue"]),
-		TotalDebt:            util.ToFloat64(data["totalDebt"]),
-		Debt:                 util.ToFloat64(data["debt"]),
-		Liability:            util.ToFloat64(data["liability"]),
-		LiabilitySSI:         util.ToFloat64(data["liabilitySSI"]),
-		NetLiability:         util.ToFloat64(data["netLiability"]),
-		Fees:                 util.ToFloat64(data["fees"]),
-		InterestSSI:          util.ToFloat64(data["interestSSI"]),
-		InterestSPV:          util.ToFloat64(data["interestSPV"]),
-		Withdrawable:         util.ToFloat64(data["withdrawable"]),
-		EE:                   util.ToFloat64(data["ee"]),
-		EE50:                 util.ToFloat64(data["ee50"]),
-		EE60:                 util.ToFloat64(data["ee60"]),
-		EE70:                 util.ToFloat64(data["ee70"]),
-		EE80:                 util.ToFloat64(data["ee80"]),
-		EE90:                 util.ToFloat64(data["ee90"]),
-		Action:               util.ToFloat64(data["action"]),
-		ActionSSI:            util.ToFloat64(data["actionSSI"]),
-		Equity:               util.ToFloat64(data["equity"]),
-		EquitySSI:            util.ToFloat64(data["equitySSI"]),
-		EECash:               util.ToFloat64(data["eeCash"]),
-		HoldSubscription:     util.ToFloat64(data["holdSubscription"]),
-		BankBalance:          util.ToFloat64(data["bankBalance"]),
-		OnHoldCash:           util.ToFloat64(data["onHoldCash"]),
-		Doverdue:             util.ToFloat64(data["doverdue"]),
-		DoverdueSSI:          util.ToFloat64(data["doverdueSSI"]),
-		AccountBalance:       util.ToFloat64(data["accountBalance"]),
-		D:                    util.ToFloat64(data["D"]),
-		DSPV:                 util.ToFloat64(data["dSPV"]),
-		DSSI:                 util.ToFloat64(data["dSSI"]),
-		CIA:                  util.ToFloat64(data["cia"]),
-		CollateralAsset:      util.ToFloat64(data["collateralAsset"]),
-		CollateralAssetSSI:   util.ToFloat64(data["collateralAssetSSI"]),
-		TotalAssets:          util.ToFloat64(data["totalAssets"]),
-		TotalEquity:          util.ToFloat64(data["totalEquity"]),
-		TotalEquitySSI:       util.ToFloat64(data["totalEquitySSI"]),
-		LMV:                  util.ToFloat64(data["lmv"]),
-		LMVMargin:            util.ToFloat64(data["lmvMargin"]),
-		LMVMarginSSI:         util.ToFloat64(data["lmvMarginSSI"]),
-		CallLMV:              util.ToFloat64(data["callLmv"]),
-		ForceLMV:             util.ToFloat64(data["forceLmv"]),
-		CallLMVSSI:           util.ToFloat64(data["callLmvSSI"]),
-		ForceLMVSSI:          util.ToFloat64(data["forceLmvSSI"]),
-		LMVNonMarginable:     util.ToFloat64(data["lmvNonMarginable"]),
-		LMVNonMarginableSSI:  util.ToFloat64(data["lmvNonMarginableSSI"]),
-		PreLoan:              util.ToFloat64(data["preLoan"]),
-		MarginRatio:          util.ToFloat64(data["marginRatio"]),
-		MarginRatioSSI:       util.ToFloat64(data["marginRatioSSI"]),
-		PurchasingPower:      util.ToFloat64(data["purchasingPower"]),
-		EEOrigin:             util.ToFloat64(data["eeOrigin"]),
-		BuyUnmatched:         util.ToFloat64(data["buyUnmatched"]),
-		SellUnmatched:        util.ToFloat64(data["sellUnmatched"]),
-		BuyT0:                util.ToFloat64(data["buyT0"]),
-		BuyT1:                util.ToFloat64(data["buyT1"]),
-		BuyT2:                util.ToFloat64(data["buyT2"]),
-		SellT0:               util.ToFloat64(data["sellT0"]),
-		SellT1:               util.ToFloat64(data["sellT1"]),
-		SellT2:               util.ToFloat64(data["sellT2"]),
-		CreditLimit:          util.ToFloat64(data["creditLimit"]),
-		MarginCallLMVSold:    util.ToFloat64(data["marginCallLmvSold"]),
-		MarginCallLMVSoldSSI: util.ToFloat64(data["marginCallLmvSoldSSI"]),
-		MarginCall:           util.ToFloat64(data["marginCall"]),
-		MarginCallSSI:        util.ToFloat64(data["marginCallSSI"]),
-		CollateralA:          util.ToFloat64(data["collateralA"]),
-		CollateralNon:        util.ToFloat64(data["collateralNon"]),
-		CollateralASSI:       util.ToFloat64(data["collateralASSI"]),
-		CollateralNonSSI:     util.ToFloat64(data["collateralNonSSI"]),
-		CallMargin:           util.ToFloat64(data["callMargin"]),
-		CallForceSell:        util.ToFloat64(data["callForceSell"]),
-		CallMarginSSI:        util.ToFloat64(data["callMarginSSI"]),
-		CallForceSellSSI:     util.ToFloat64(data["callForceSellSSI"]),
-		AR:                   util.ToFloat64(data["ar"]),
+		AccountNo:            text(data, "accountNo"),
+		Dividend:             num(data, "dividend"),
+		LoanValue:            num(data, "loanValue"),
+		TotalDebt:            num(data, "totalDebt"),
+		Debt:                 num(data, "debt"),
+		Liability:            num(data, "liability"),
+		LiabilitySSI:         num(data, "liabilitySSI"),
+		NetLiability:         num(data, "netLiability"),
+		Fees:                 num(data, "fees"),
+		InterestSSI:          num(data, "interestSSI"),
+		InterestSPV:          num(data, "interestSPV"),
+		Withdrawable:         num(data, "withdrawable"),
+		EE:                   num(data, "ee"),
+		EE50:                 num(data, "ee50"),
+		EE60:                 num(data, "ee60"),
+		EE70:                 num(data, "ee70"),
+		EE80:                 num(data, "ee80"),
+		EE90:                 num(data, "ee90"),
+		Action:               num(data, "action"),
+		ActionSSI:            num(data, "actionSSI"),
+		Equity:               num(data, "equity"),
+		EquitySSI:            num(data, "equitySSI"),
+		EECash:               num(data, "eeCash"),
+		HoldSubscription:     num(data, "holdSubscription"),
+		BankBalance:          num(data, "bankBalance"),
+		OnHoldCash:           num(data, "onHoldCash"),
+		Doverdue:             num(data, "doverdue"),
+		DoverdueSSI:          num(data, "doverdue_ssi", "doverdueSSI"),
+		AccountBalance:       num(data, "accountBalance"),
+		D:                    num(data, "D", "d"),
+		DSPV:                 num(data, "dSPV", "dspv"),
+		DSSI:                 num(data, "dSSI", "dssi"),
+		CIA:                  num(data, "cia"),
+		CollateralAsset:      num(data, "collateralAsset"),
+		CollateralAssetSSI:   num(data, "collateralAssetSSI"),
+		TotalAssets:          num(data, "totalAssets"),
+		TotalEquity:          num(data, "totalEquity"),
+		TotalEquitySSI:       num(data, "totalEquitySSI"),
+		LMV:                  num(data, "lmv"),
+		LMVMargin:            num(data, "lmvMargin"),
+		LMVMarginSSI:         num(data, "lmvMarginSSI"),
+		CallLMV:              num(data, "callLMV", "callLmv"),
+		ForceLMV:             num(data, "forceLMV", "forceLmv"),
+		CallLMVSSI:           num(data, "callLMVSSI", "callLmvSSI"),
+		ForceLMVSSI:          num(data, "forceLMVSSI", "forceLmvSSI"),
+		LMVNonMarginable:     num(data, "lmvNonMarginable"),
+		LMVNonMarginableSSI:  num(data, "lmvNonMarginableSSI"),
+		PreLoan:              num(data, "preLoan"),
+		MarginRatio:          num(data, "marginRatio"),
+		MarginRatioSSI:       num(data, "marginRatioSSI"),
+		PurchasingPower:      num(data, "purchasingPower"),
+		EEOrigin:             num(data, "eeOrigin"),
+		BuyUnmatched:         num(data, "buyUnmatched"),
+		SellUnmatched:        num(data, "sellUnmatched"),
+		BuyT0:                num(data, "buyT0"),
+		BuyT1:                num(data, "buyT1"),
+		BuyT2:                num(data, "buyT2"),
+		SellT0:               num(data, "sellT0"),
+		SellT1:               num(data, "sellT1"),
+		SellT2:               num(data, "sellT2"),
+		CreditLimit:          num(data, "creditLimit"),
+		MarginCallLMVSold:    num(data, "marginCallLMVSold", "marginCallLmvSold"),
+		MarginCallLMVSoldSSI: num(data, "marginCallLMVSoldSSI", "marginCallLmvSoldSSI"),
+		MarginCall:           num(data, "marginCall"),
+		MarginCallSSI:        num(data, "marginCallSSI"),
+		CollateralA:          num(data, "collateralA"),
+		CollateralNon:        num(data, "collateralNon"),
+		CollateralASSI:       num(data, "collateralASSI"),
+		CollateralNonSSI:     num(data, "collateralNonSSI"),
+		CallMargin:           num(data, "callMargin"),
+		CallForceSell:        num(data, "callForcesell", "callForceSell"),
+		CallMarginSSI:        num(data, "callMarginSSI"),
+		CallForceSellSSI:     num(data, "callForcesellSSI", "callForceSellSSI"),
+		AR:                   num(data, "ar"),
 	}
 }
 
-// DerivativePPMMR is derivative PPMMR information.
+// DerivativePPMMR is derivative purchasing power / maintenance margin information.
 type DerivativePPMMR struct {
-	AccountNo                  string  `json:"accountNo"`
-	AccountBalance             float64 `json:"accountBalance"`
-	Fee                        float64 `json:"fee"`
-	Commission                 float64 `json:"commission"`
-	Interest                   float64 `json:"interest"`
-	Loan                       float64 `json:"loan"`
-	DeliveryAmount             float64 `json:"deliveryAmount"`
-	FloatingPL                 float64 `json:"floatingPL"`
-	TradingPL                  float64 `json:"tradingPL"`
-	TotalPL                    float64 `json:"totalPL"`
-	Marginable                 float64 `json:"marginable"`
-	Depositable                float64 `json:"depositable"`
-	RCCall                     float64 `json:"rcCall"`
-	Withdrawable               float64 `json:"withdrawable"`
-	NonCashDrawableRCCall      float64 `json:"nonCashDrawableRcCall"`
-	CashSSI                    float64 `json:"cashSSI"`
-	ValidNonCashSSI            float64 `json:"validNonCashSSI"`
-	TotalAssetSSI              float64 `json:"totalAssetSSI"`
-	WithdrawableSSI            float64 `json:"withdrawableSSI"`
-	EESSI                      float64 `json:"eeSSI"`
-	CashVSDC                   float64 `json:"cashVSDC"`
-	ValidNonCashVSDC           float64 `json:"validNonCashVSDC"`
-	TotalAssetVSDC             float64 `json:"totalAssetVSDC"`
-	WithdrawableVSDC           float64 `json:"withdrawableVSDC"`
-	EEVSDC                     float64 `json:"eeVSDC"`
-	SpreadMarginSSI            float64 `json:"spreadMarginSSI"`
-	DeliveryMarginSSI          float64 `json:"deliveryMarginSSI"`
-	MarginReqSSI               float64 `json:"marginReqSSI"`
-	AccountRatioSSI            float64 `json:"accountRatioSSI"`
-	UsedLimitWarningLevel1SSI  float64 `json:"usedLimitWarningLevel1SSI"`
-	UsedLimitWarningLevel2SSI  float64 `json:"usedLimitWarningLevel2SSI"`
-	UsedLimitWarningLevel3SSI  float64 `json:"usedLimitWarningLevel3SSI"`
-	MarginCallSSI              float64 `json:"marginCallSSI"`
-	SpreadMarginVSDC           float64 `json:"spreadMarginVSDC"`
-	DeliveryMarginVSDC         float64 `json:"deliveryMarginVSDC"`
-	MarginReqVSDC              float64 `json:"marginReqVSDC"`
-	AccountRatioVSDC           float64 `json:"accountRatioVSDC"`
-	UsedLimitWarningLevel1VSDC float64 `json:"usedLimitWarningLevel1VSDC"`
-	UsedLimitWarningLevel2VSDC float64 `json:"usedLimitWarningLevel2VSDC"`
-	UsedLimitWarningLevel3VSDC float64 `json:"usedLimitWarningLevel3VSDC"`
-	MarginCallVSDC             float64 `json:"marginCallVSDC"`
-	TotalEquity                float64 `json:"totalEquity"`
-	ExtInterest                float64 `json:"extInterest"`
+	AccountNo                  string
+	AccountBalance             float64
+	Fee                        float64
+	Commission                 float64
+	Interest                   float64
+	Loan                       float64
+	DeliveryAmount             float64
+	FloatingPL                 float64
+	TradingPL                  float64
+	TotalPL                    float64
+	Marginable                 float64
+	Depositable                float64
+	RCCall                     float64
+	Withdrawable               float64
+	NonCashDrawableRCCall      float64
+	CashSSI                    float64
+	ValidNonCashSSI            float64
+	TotalAssetSSI              float64
+	WithdrawableSSI            float64
+	EESSI                      float64
+	CashVSDC                   float64
+	ValidNonCashVSDC           float64
+	TotalAssetVSDC             float64
+	WithdrawableVSDC           float64
+	EEVSDC                     float64
+	SpreadMarginSSI            float64
+	DeliveryMarginSSI          float64
+	MarginReqSSI               float64
+	AccountRatioSSI            float64
+	UsedLimitWarningLevel1SSI  float64
+	UsedLimitWarningLevel2SSI  float64
+	UsedLimitWarningLevel3SSI  float64
+	MarginCallSSI              float64
+	SpreadMarginVSDC           float64
+	DeliveryMarginVSDC         float64
+	MarginReqVSDC              float64
+	AccountRatioVSDC           float64
+	UsedLimitWarningLevel1VSDC float64
+	UsedLimitWarningLevel2VSDC float64
+	UsedLimitWarningLevel3VSDC float64
+	MarginCallVSDC             float64
+	TotalEquity                float64
+	ExtInterest                float64
 }
 
 func DerivativePPMMRFromMap(data map[string]interface{}) *DerivativePPMMR {
 	return &DerivativePPMMR{
-		AccountNo:                  util.ToStr(data["accountNo"]),
-		AccountBalance:             util.ToFloat64(data["accountBalance"]),
-		Fee:                        util.ToFloat64(data["fee"]),
-		Commission:                 util.ToFloat64(data["commission"]),
-		Interest:                   util.ToFloat64(data["interest"]),
-		Loan:                       util.ToFloat64(data["loan"]),
-		DeliveryAmount:             util.ToFloat64(data["deliveryAmount"]),
-		FloatingPL:                 util.ToFloat64(data["floatingPL"]),
-		TradingPL:                  util.ToFloat64(data["tradingPL"]),
-		TotalPL:                    util.ToFloat64(data["totalPL"]),
-		Marginable:                 util.ToFloat64(data["marginable"]),
-		Depositable:                util.ToFloat64(data["depositable"]),
-		RCCall:                     util.ToFloat64(data["rcCall"]),
-		Withdrawable:               util.ToFloat64(data["withdrawable"]),
-		NonCashDrawableRCCall:      util.ToFloat64(data["nonCashDrawableRcCall"]),
-		CashSSI:                    util.ToFloat64(data["cashSSI"]),
-		ValidNonCashSSI:            util.ToFloat64(data["validNonCashSSI"]),
-		TotalAssetSSI:              util.ToFloat64(data["totalAssetSSI"]),
-		WithdrawableSSI:            util.ToFloat64(data["withdrawableSSI"]),
-		EESSI:                      util.ToFloat64(data["eeSSI"]),
-		CashVSDC:                   util.ToFloat64(data["cashVSDC"]),
-		ValidNonCashVSDC:           util.ToFloat64(data["validNonCashVSDC"]),
-		TotalAssetVSDC:             util.ToFloat64(data["totalAssetVSDC"]),
-		WithdrawableVSDC:           util.ToFloat64(data["withdrawableVSDC"]),
-		EEVSDC:                     util.ToFloat64(data["eeVSDC"]),
-		SpreadMarginSSI:            util.ToFloat64(data["spreadMarginSSI"]),
-		DeliveryMarginSSI:          util.ToFloat64(data["deliveryMarginSSI"]),
-		MarginReqSSI:               util.ToFloat64(data["marginReqSSI"]),
-		AccountRatioSSI:            util.ToFloat64(data["accountRatioSSI"]),
-		UsedLimitWarningLevel1SSI:  util.ToFloat64(data["usedLimitWarningLevel1SSI"]),
-		UsedLimitWarningLevel2SSI:  util.ToFloat64(data["usedLimitWarningLevel2SSI"]),
-		UsedLimitWarningLevel3SSI:  util.ToFloat64(data["usedLimitWarningLevel3SSI"]),
-		MarginCallSSI:              util.ToFloat64(data["marginCallSSI"]),
-		SpreadMarginVSDC:           util.ToFloat64(data["spreadMarginVSDC"]),
-		DeliveryMarginVSDC:         util.ToFloat64(data["deliveryMarginVSDC"]),
-		MarginReqVSDC:              util.ToFloat64(data["marginReqVSDC"]),
-		AccountRatioVSDC:           util.ToFloat64(data["accountRatioVSDC"]),
-		UsedLimitWarningLevel1VSDC: util.ToFloat64(data["usedLimitWarningLevel1VSDC"]),
-		UsedLimitWarningLevel2VSDC: util.ToFloat64(data["usedLimitWarningLevel2VSDC"]),
-		UsedLimitWarningLevel3VSDC: util.ToFloat64(data["usedLimitWarningLevel3VSDC"]),
-		MarginCallVSDC:             util.ToFloat64(data["marginCallVSDC"]),
-		TotalEquity:                util.ToFloat64(data["totalEquity"]),
-		ExtInterest:                util.ToFloat64(data["extInterest"]),
+		AccountNo:                  text(data, "accountNo"),
+		AccountBalance:             num(data, "accountBalance"),
+		Fee:                        num(data, "fee"),
+		Commission:                 num(data, "commission"),
+		Interest:                   num(data, "interest"),
+		Loan:                       num(data, "loan"),
+		DeliveryAmount:             num(data, "deliveryAmount"),
+		FloatingPL:                 num(data, "floatingPL"),
+		TradingPL:                  num(data, "tradingPL"),
+		TotalPL:                    num(data, "totalPL"),
+		Marginable:                 num(data, "marginable"),
+		Depositable:                num(data, "depositable"),
+		RCCall:                     num(data, "rcCall"),
+		Withdrawable:               num(data, "withdrawable"),
+		NonCashDrawableRCCall:      num(data, "nonCashDrawableRCCall", "nonCashDrawableRcCall"),
+		CashSSI:                    num(data, "cashSSI"),
+		ValidNonCashSSI:            num(data, "validNonCashSSI"),
+		TotalAssetSSI:              num(data, "totalAssetSSI"),
+		WithdrawableSSI:            num(data, "withdrawableSSI"),
+		EESSI:                      num(data, "eeSSI"),
+		CashVSDC:                   num(data, "cashVSDC"),
+		ValidNonCashVSDC:           num(data, "validNonCashVSDC"),
+		TotalAssetVSDC:             num(data, "totalAssetVSDC"),
+		WithdrawableVSDC:           num(data, "withdrawableVSDC"),
+		EEVSDC:                     num(data, "eeVSDC"),
+		SpreadMarginSSI:            num(data, "spreadMarginSSI"),
+		DeliveryMarginSSI:          num(data, "deliveryMarginSSI"),
+		MarginReqSSI:               num(data, "marginReqSSI"),
+		AccountRatioSSI:            num(data, "accountRatioSSI"),
+		UsedLimitWarningLevel1SSI:  num(data, "usedLimitWarningLevel1SSI"),
+		UsedLimitWarningLevel2SSI:  num(data, "usedLimitWarningLevel2SSI"),
+		UsedLimitWarningLevel3SSI:  num(data, "usedLimitWarningLevel3SSI"),
+		MarginCallSSI:              num(data, "marginCallSSI"),
+		SpreadMarginVSDC:           num(data, "spreadMarginVSDC"),
+		DeliveryMarginVSDC:         num(data, "deliveryMarginVSDC"),
+		MarginReqVSDC:              num(data, "marginReqVSDC"),
+		AccountRatioVSDC:           num(data, "accountRatioVSDC"),
+		UsedLimitWarningLevel1VSDC: num(data, "usedLimitWarningLevel1VSDC"),
+		UsedLimitWarningLevel2VSDC: num(data, "usedLimitWarningLevel2VSDC"),
+		UsedLimitWarningLevel3VSDC: num(data, "usedLimitWarningLevel3VSDC"),
+		MarginCallVSDC:             num(data, "marginCallVSDC"),
+		TotalEquity:                num(data, "totalEquity"),
+		ExtInterest:                num(data, "extInterest"),
 	}
 }
 
-// PPMMR is PPMMR information.
+// PPMMR is PPMMR information. A section the account does not have is nil.
 type PPMMR struct {
-	Equity     *EquityPPMMR     `json:"equity,omitempty"`
-	Derivative *DerivativePPMMR `json:"derivative,omitempty"`
+	Equity     *EquityPPMMR
+	Derivative *DerivativePPMMR
 }
 
 func PPMMRFromMap(data map[string]interface{}) *PPMMR {
 	p := &PPMMR{}
-	if eq, ok := data["equity"].(map[string]interface{}); ok {
+	if eq, ok := nonEmptyMap(data["equity"]); ok {
 		p.Equity = EquityPPMMRFromMap(eq)
 	}
-	if der, ok := data["derivative"].(map[string]interface{}); ok {
+	if der, ok := nonEmptyMap(data["derivative"]); ok {
 		p.Derivative = DerivativePPMMRFromMap(der)
 	}
 	return p
 }
 
-// OrderBookRequest is order book request.
+// OrderBookRequest is the order book request. Empty strings are not sent.
 type OrderBookRequest struct {
-	AccountNo string `json:"accountNo"`
-	FromDate  string `json:"from,omitempty"`
-	ToDate    string `json:"to,omitempty"`
-	Page      int    `json:"pageIndex"`
-	Size      int    `json:"pageSize"`
+	AccountNo   string
+	FromDate    string
+	ToDate      string
+	Page        int
+	Size        int
+	Symbol      string
+	OrderStatus string
 }
 
 func (r *OrderBookRequest) ToMap() map[string]string {
-	return map[string]string{
-		"accountNo": r.AccountNo,
-		"from":      r.FromDate,
-		"to":        r.ToDate,
-		"pageIndex": fmt.Sprintf("%d", r.Page),
-		"pageSize":  fmt.Sprintf("%d", r.Size),
+	params := map[string]string{"accountNo": r.AccountNo}
+	if r.FromDate != "" {
+		params["from"] = r.FromDate
 	}
+	if r.ToDate != "" {
+		params["to"] = r.ToDate
+	}
+	if r.Symbol != "" {
+		params["symbol"] = r.Symbol
+	}
+	if r.OrderStatus != "" {
+		params["orderStatus"] = r.OrderStatus
+	}
+	params["pageIndex"] = strconv.Itoa(r.Page)
+	params["pageSize"] = strconv.Itoa(r.Size)
+	return params
 }
 
-// Order is order information.
+// Order is order information. Side, OrderType and Status are the typed value when the server sent
+// a known member and the raw string otherwise (the types are string-based, so nothing is lost).
 type Order struct {
-	AccountNo       string              `json:"accountNo"`
-	ClientRequestID string              `json:"clientRequestId"`
-	OrderID         string              `json:"orderId"`
-	Symbol          string              `json:"symbol"`
-	Side            trading.OrderSide   `json:"side,omitempty"`
-	OrderType       trading.OrderType   `json:"orderType,omitempty"`
-	Price           float64             `json:"price"`
-	AvgPrice        float64             `json:"avgPrice"`
-	Quantity        int                 `json:"quantity"`
-	OSQuantity      int                 `json:"osQuantity"`
-	FilledQuantity  int                 `json:"filledQuantity"`
-	CancelQuantity  int                 `json:"cancelQuantity"`
-	Status          trading.OrderStatus `json:"orderStatus,omitempty"`
-	InputTime       string              `json:"inputTime"`
-	ModifyTime      string              `json:"modifiedTime"`
-	Message         string              `json:"message"`
+	AccountNo       string
+	ClientRequestID string
+	OrderID         string
+	// Symbol is read from "symbol", falling back to "instrumentId" (order history).
+	Symbol    string
+	Side      trading.OrderSide
+	OrderType trading.OrderType
+	// Price is the numeric price. For a market-priced order the server sends a word (ATO, ATC,
+	// MP...) instead: Price is then 0 and PriceText holds the word.
+	Price     float64
+	PriceText string
+	AvgPrice  float64
+	Quantity  int
+	// OSQuantity is nil when the server did not send it (the REST order book never does).
+	OSQuantity     *int
+	FilledQuantity int
+	CancelQuantity int
+	Status         trading.OrderStatus
+	// InputTime and ModifyTime are "yyyy/MM/dd HH:mm:ss".
+	InputTime  string
+	ModifyTime string
+	// Message is the server message (the reason for a rejection).
+	Message string
 }
 
+// OrderFromMap parses one order row. The server names are filledQty/cancelQty (filledQuantity /
+// cancelQuantity are read as a fallback) and buySell for side in the order history.
 func OrderFromMap(data map[string]interface{}, accountNo string) *Order {
 	o := &Order{
 		AccountNo:       accountNo,
-		ClientRequestID: util.ToStr(data["clientRequestId"]),
-		OrderID:         util.ToStr(data["orderId"]),
-		Symbol:          util.ToStr(data["symbol"]),
-		Price:           util.ToFloat64(data["price"]),
-		AvgPrice:        util.ToFloat64(data["avgPrice"]),
-		Quantity:        util.ToInt(data["quantity"]),
-		OSQuantity:      util.ToInt(data["osQuantity"]),
-		FilledQuantity:  util.ToInt(data["filledQuantity"]),
-		CancelQuantity:  util.ToInt(data["cancelQuantity"]),
-		InputTime:       util.ToStr(data["inputTime"]),
-		ModifyTime:      util.ToStr(data["modifiedTime"]),
-		Message:         util.ToStr(data["message"]),
+		ClientRequestID: text(data, "clientRequestId"),
+		OrderID:         text(data, "orderId"),
+		Symbol:          text(data, "symbol", "instrumentId"),
+		Side:            normSide(text(data, "side", "buySell")),
+		OrderType:       normOrderType(text(data, "orderType")),
+		AvgPrice:        num(data, "avgPrice"),
+		Quantity:        whole(data, "quantity"),
+		OSQuantity:      util.ToOptInt(data["osQuantity"]),
+		FilledQuantity:  whole(data, "filledQty", "filledQuantity"),
+		CancelQuantity:  whole(data, "cancelQty", "cancelQuantity"),
+		Status:          normStatus(text(data, "orderStatus")),
+		InputTime:       text(data, "inputTime"),
+		ModifyTime:      text(data, "modifiedTime"),
+		Message:         text(data, "message"),
 	}
-	if s := util.ToStr(data["side"]); s != "" {
-		o.Side = trading.OrderSide(s)
-	}
-	if ot := util.ToStr(data["orderType"]); ot != "" {
-		o.OrderType = trading.OrderType(ot)
-	}
-	if os := util.ToStr(data["orderStatus"]); os != "" {
-		o.Status = trading.OrderStatus(os)
-	}
+	o.Price, o.PriceText = parsePrice(data["price"])
 	return o
 }
 
-// OrderBook is order book information.
-type OrderBook struct {
-	Orders      []Order `json:"orders"`
-	TotalOrders int     `json:"totalRecord"`
+// normSide, normOrderType and normStatus match case-insensitively and keep an unknown value as sent.
+func normSide(raw string) trading.OrderSide {
+	if v, ok := trading.OrderSideFromValue(raw); ok {
+		return v
+	}
+	return trading.OrderSide(raw)
 }
 
-func OrderBookFromMap(data map[string]interface{}) *OrderBook {
-	ob := &OrderBook{
-		TotalOrders: util.ToInt(data["totalRecord"]),
+func normOrderType(raw string) trading.OrderType {
+	if v, ok := trading.OrderTypeFromValue(raw); ok {
+		return v
 	}
-	accountNo := util.ToStr(data["accountNo"])
-	if orderList, ok := data["orderList"].([]interface{}); ok {
-		for _, item := range orderList {
-			if m, ok := item.(map[string]interface{}); ok {
-				ob.Orders = append(ob.Orders, *OrderFromMap(m, accountNo))
-			}
+	return trading.OrderType(raw)
+}
+
+func normStatus(raw string) trading.OrderStatus {
+	if v, ok := trading.OrderStatusFromValue(raw); ok {
+		return v
+	}
+	return trading.OrderStatus(raw)
+}
+
+// parsePrice returns the numeric price, or 0 plus the word the server sent for a market-priced
+// order. nil and blank are 0.
+func parsePrice(v interface{}) (float64, string) {
+	if v == nil {
+		return 0, ""
+	}
+	if s, ok := v.(string); ok {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return 0, ""
 		}
+		if f, err := strconv.ParseFloat(s, 64); err == nil {
+			return f, ""
+		}
+		if t, ok := trading.OrderTypeFromValue(s); ok {
+			return 0, string(t)
+		}
+		return 0, s
+	}
+	return util.ToFloat64(v), ""
+}
+
+// OrderBook is order book information. TotalOrders is informational: do not derive a page count
+// from it (the server's paging can be off), page until a page comes back empty instead.
+type OrderBook struct {
+	Orders      []Order
+	TotalOrders int
+}
+
+// OrderBookFromMap parses the order book payload. The server's {"code": 204} marker and an absent
+// orderList both yield an empty book.
+func OrderBookFromMap(data map[string]interface{}) *OrderBook {
+	ob := &OrderBook{Orders: []Order{}}
+	if data == nil || util.IsNoContent(data) {
+		return ob
+	}
+	ob.TotalOrders = whole(data, "totalRecord")
+	accountNo := text(data, "accountNo")
+	for _, m := range rowMaps(data["orderList"]) {
+		ob.Orders = append(ob.Orders, *OrderFromMap(m, accountNo))
 	}
 	return ob
 }

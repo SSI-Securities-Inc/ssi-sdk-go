@@ -2,11 +2,57 @@ package market
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/SSI-Securities-Inc/ssi-sdk-go/v3/internal/util"
 )
 
+// normalizeBoard parses a board leniently: a known value becomes its Board, an unknown one is
+// kept as the raw string. ok is false for an empty value.
+func normalizeBoard(raw interface{}) (Board, bool) {
+	text := strings.TrimSpace(util.ToStr(raw))
+	if text == "" {
+		return "", false
+	}
+	if b, ok := BoardFromValue(text); ok {
+		return b, true
+	}
+	return Board(text), true
+}
+
+func boardPtr(raw interface{}) *Board {
+	if b, ok := normalizeBoard(raw); ok {
+		return &b
+	}
+	return nil
+}
+
+// blankToNil maps the server's empty-string "no value" marker (and a missing value) to nil.
+func blankToNil(v interface{}) *string {
+	if v == nil {
+		return nil
+	}
+	s := util.ToStr(v)
+	if strings.TrimSpace(s) == "" {
+		return nil
+	}
+	return &s
+}
+
+func rowMaps(data []interface{}) []map[string]interface{} {
+	out := make([]map[string]interface{}, 0, len(data))
+	for _, item := range data {
+		if m, ok := item.(map[string]interface{}); ok {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
 // DownloadDataRequest is a bulk download data request.
+//
+// Deprecated: the server has no data/file endpoint yet and its final response shape is
+// undecided, so nothing uses this model.
 type DownloadDataRequest struct {
 	Symbol    string    `json:"symbol"`
 	Timeframe Timeframe `json:"timeFrame"`
@@ -20,6 +66,8 @@ func (r *DownloadDataRequest) ToMap() map[string]string {
 }
 
 // DownloadData is a bulk download data result.
+//
+// Deprecated: see DownloadDataRequest.
 type DownloadData struct {
 	Data       []map[string]interface{} `json:"data"`
 	TotalCount int                      `json:"totalCount"`
@@ -28,11 +76,7 @@ type DownloadData struct {
 func DownloadDataFromMap(data map[string]interface{}) *DownloadData {
 	d := &DownloadData{}
 	if items, ok := data["data"].([]interface{}); ok {
-		for _, item := range items {
-			if m, ok := item.(map[string]interface{}); ok {
-				d.Data = append(d.Data, m)
-			}
-		}
+		d.Data = rowMaps(items)
 		d.TotalCount = len(d.Data)
 	}
 	if v, ok := data["totalCount"]; ok {
@@ -64,7 +108,8 @@ func (r *OHLCRequest) ToMap() map[string]string {
 
 // OHLCData is an OHLC data result.
 type OHLCData struct {
-	Symbol      string  `json:"symbol"`
+	Symbol string `json:"symbol"`
+	// TradingDate is the date as the server formats it (varies by endpoint).
 	TradingDate string  `json:"tradingDate"`
 	OpenPrice   float64 `json:"open"`
 	HighPrice   float64 `json:"high"`
@@ -75,12 +120,8 @@ type OHLCData struct {
 }
 
 func OHLCDataFromList(data []interface{}) []OHLCData {
-	var result []OHLCData
-	for _, item := range data {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
+	result := make([]OHLCData, 0, len(data))
+	for _, m := range rowMaps(data) {
 		result = append(result, OHLCData{
 			Symbol:      util.ToStr(m["symbol"]),
 			TradingDate: util.ToStr(m["tradingDate"]),
@@ -104,34 +145,28 @@ func (r *MarketIndexesRequest) ToMap() map[string]string {
 	if r.Board == nil {
 		return map[string]string{}
 	}
-	return map[string]string{
-		"board": string(*r.Board),
-	}
+	return map[string]string{"board": string(*r.Board)}
 }
 
 // MarketIndexes is market indices information.
 type MarketIndexes struct {
 	Index     string `json:"index"`
 	IndexName string `json:"indexName"`
-	Board     *Board `json:"board,omitempty"`
+	// Board is the matching board, or the raw string for a board this SDK does not know.
+	Board *Board `json:"board,omitempty"`
+	// BoardRaw is the board exactly as the server sent it.
+	BoardRaw *string `json:"-"`
 }
 
 func MarketIndexesFromList(data []interface{}) []MarketIndexes {
-	var result []MarketIndexes
-	for _, item := range data {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		mi := MarketIndexes{
+	result := make([]MarketIndexes, 0, len(data))
+	for _, m := range rowMaps(data) {
+		result = append(result, MarketIndexes{
 			Index:     util.ToStr(m["index"]),
 			IndexName: util.ToStr(m["indexName"]),
-		}
-		if boardStr := util.ToStr(m["board"]); boardStr != "" {
-			b := Board(boardStr)
-			mi.Board = &b
-		}
-		result = append(result, mi)
+			Board:     boardPtr(m["board"]),
+			BoardRaw:  blankToNil(m["board"]),
+		})
 	}
 	return result
 }
@@ -157,7 +192,8 @@ func (r *MarketIndexSummaryRequest) ToMap() map[string]string {
 	return data
 }
 
-// MarketIndexSummary is market index summary information.
+// MarketIndexSummary is market index summary information. The foreign-trading fields are nil
+// when the server omits them.
 type MarketIndexSummary struct {
 	TradingDate        string  `json:"tradingDate"`
 	TotalTrade         int     `json:"totalTrade"`
@@ -178,15 +214,18 @@ type MarketIndexSummary struct {
 	TotalPropBuyValue  float64 `json:"totalPropBuyValue"`
 	TotalPropSell      int     `json:"totalPropSell"`
 	TotalPropSellValue float64 `json:"totalPropSellValue"`
+
+	TotalBuyForeign           *float64 `json:"totalBuyForeign,omitempty"`
+	TotalBuyForeignValue      *float64 `json:"totalBuyForeignValue,omitempty"`
+	TotalSellForeign          *float64 `json:"totalSellForeign,omitempty"`
+	TotalSellForeignValue     *float64 `json:"totalSellForeignValue,omitempty"`
+	NetPurchasesForeignVolume *float64 `json:"netPurchasesForeignVolume,omitempty"`
+	NetPurchasesForeignValue  *float64 `json:"netPurchasesForeignValue,omitempty"`
 }
 
 func MarketIndexSummaryFromList(data []interface{}) []MarketIndexSummary {
-	var result []MarketIndexSummary
-	for _, item := range data {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
+	result := make([]MarketIndexSummary, 0, len(data))
+	for _, m := range rowMaps(data) {
 		result = append(result, MarketIndexSummary{
 			TradingDate:        util.ToStr(m["tradingDate"]),
 			TotalTrade:         util.ToInt(m["totalTrade"]),
@@ -207,6 +246,13 @@ func MarketIndexSummaryFromList(data []interface{}) []MarketIndexSummary {
 			TotalPropBuyValue:  util.ToFloat64(m["totalPropBuyValue"]),
 			TotalPropSell:      util.ToInt(m["totalPropSell"]),
 			TotalPropSellValue: util.ToFloat64(m["totalPropSellValue"]),
+
+			TotalBuyForeign:           util.ToOptFloat64(m["totalBuyForeign"]),
+			TotalBuyForeignValue:      util.ToOptFloat64(m["totalBuyForeignValue"]),
+			TotalSellForeign:          util.ToOptFloat64(m["totalSellForeign"]),
+			TotalSellForeignValue:     util.ToOptFloat64(m["totalSellForeignValue"]),
+			NetPurchasesForeignVolume: util.ToOptFloat64(m["netPurchasesForeignVolume"]),
+			NetPurchasesForeignValue:  util.ToOptFloat64(m["netPurchasesForeignValue"]),
 		})
 	}
 	return result
@@ -233,61 +279,56 @@ func (r *SecuritiesInfoRequest) ToMap() map[string]string {
 	return data
 }
 
-// SecuritiesInfo is securities information.
+// SecuritiesInfo is securities information. A numeric field the server omits or leaves empty
+// is nil (not 0), and an empty text/date field is nil.
 type SecuritiesInfo struct {
-	Symbol             string  `json:"symbol"`
-	Board              *Board  `json:"board,omitempty"`
-	Index              string  `json:"index,omitempty"`
-	SymbolNameVi       string  `json:"symbolNameVi,omitempty"`
-	SymbolNameEn       string  `json:"symbolNameEn,omitempty"`
-	LotSize            int     `json:"lotSize,omitempty"`
-	MaturityDate       string  `json:"maturityDate,omitempty"`
-	FirstTradingDate   string  `json:"firstTradingDate,omitempty"`
-	LastTradingDate    string  `json:"lastTradingDate,omitempty"`
-	CWUnderlyingSymbol string  `json:"cwUnderlyingSymbol,omitempty"`
-	CWExercisePrice    float64 `json:"cwExercisePrice,omitempty"`
-	CWExecutionRatio   float64 `json:"cwExecutionRatio,omitempty"`
-	ListedShares       int     `json:"listedShare,omitempty"`
-	ICBCode            string  `json:"icbCode,omitempty"`
-	ICBName            string  `json:"icbName,omitempty"`
-	IIndex             float64 `json:"iIndex,omitempty"`
-	INAV               float64 `json:"iNav,omitempty"`
-	OpenInterest       float64 `json:"openInterest,omitempty"`
-	SettlementPrice    float64 `json:"settlementPrice,omitempty"`
+	Symbol             string   `json:"symbol"`
+	Board              *Board   `json:"board,omitempty"`
+	Index              string   `json:"index,omitempty"`
+	SymbolNameVi       string   `json:"symbolNameVi,omitempty"`
+	SymbolNameEn       string   `json:"symbolNameEn,omitempty"`
+	LotSize            *int     `json:"lotSize,omitempty"`
+	MaturityDate       *string  `json:"maturityDate,omitempty"`
+	FirstTradingDate   *string  `json:"firstTradingDate,omitempty"`
+	LastTradingDate    *string  `json:"lastTradingDate,omitempty"`
+	CWUnderlyingSymbol *string  `json:"cwUnderlyingSymbol,omitempty"`
+	CWExercisePrice    *float64 `json:"cwExercisePrice,omitempty"`
+	CWExecutionRatio   *float64 `json:"cwExecutionRatio,omitempty"`
+	ListedShares       *int     `json:"listedShare,omitempty"`
+	ICBCode            *string  `json:"icbCode,omitempty"`
+	ICBName            *string  `json:"icbName,omitempty"`
+	IIndex             *float64 `json:"iIndex,omitempty"`
+	INAV               *float64 `json:"iNav,omitempty"`
+	OpenInterest       *float64 `json:"openInterest,omitempty"`
+	SettlementPrice    *float64 `json:"settlementPrice,omitempty"`
+	StockType          *string  `json:"stockType,omitempty"`
 }
 
 func SecuritiesInfoFromList(data []interface{}) []SecuritiesInfo {
-	var result []SecuritiesInfo
-	for _, item := range data {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		si := SecuritiesInfo{
+	result := make([]SecuritiesInfo, 0, len(data))
+	for _, m := range rowMaps(data) {
+		result = append(result, SecuritiesInfo{
 			Symbol:             util.ToStr(m["symbol"]),
+			Board:              boardPtr(m["board"]),
 			Index:              util.ToStr(m["index"]),
 			SymbolNameVi:       util.ToStr(m["symbolNameVi"]),
 			SymbolNameEn:       util.ToStr(m["symbolNameEn"]),
-			LotSize:            util.ToInt(m["lotSize"]),
-			MaturityDate:       util.ToStr(m["maturityDate"]),
-			FirstTradingDate:   util.ToStr(m["firstTradingDate"]),
-			LastTradingDate:    util.ToStr(m["lastTradingDate"]),
-			CWUnderlyingSymbol: util.ToStr(m["cwUnderlyingSymbol"]),
-			CWExercisePrice:    util.ToFloat64(m["cwExercisePrice"]),
-			CWExecutionRatio:   util.ToFloat64(m["cwExecutionRatio"]),
-			ListedShares:       util.ToInt(m["listedShare"]),
-			ICBCode:            util.ToStr(m["icbCode"]),
-			ICBName:            util.ToStr(m["icbName"]),
-			IIndex:             util.ToFloat64(m["iIndex"]),
-			INAV:               util.ToFloat64(m["iNav"]),
-			OpenInterest:       util.ToFloat64(m["openInterest"]),
-			SettlementPrice:    util.ToFloat64(m["settlementPrice"]),
-		}
-		if boardStr := util.ToStr(m["board"]); boardStr != "" {
-			b := Board(boardStr)
-			si.Board = &b
-		}
-		result = append(result, si)
+			LotSize:            util.ToOptInt(m["lotSize"]),
+			MaturityDate:       blankToNil(m["maturityDate"]),
+			FirstTradingDate:   blankToNil(m["firstTradingDate"]),
+			LastTradingDate:    blankToNil(m["lastTradingDate"]),
+			CWUnderlyingSymbol: blankToNil(m["cwUnderlyingSymbol"]),
+			CWExercisePrice:    util.ToOptFloat64(m["cwExercisePrice"]),
+			CWExecutionRatio:   util.ToOptFloat64(m["cwExecutionRatio"]),
+			ListedShares:       util.ToOptInt(m["listedShare"]),
+			ICBCode:            blankToNil(m["icbCode"]),
+			ICBName:            blankToNil(m["icbName"]),
+			IIndex:             util.ToOptFloat64(m["iIndex"]),
+			INAV:               util.ToOptFloat64(m["iNav"]),
+			OpenInterest:       util.ToOptFloat64(m["openInterest"]),
+			SettlementPrice:    util.ToOptFloat64(m["settlementPrice"]),
+			StockType:          blankToNil(m["stockType"]),
+		})
 	}
 	return result
 }
@@ -318,42 +359,42 @@ func (r *SecuritiesSummaryRequest) ToMap() map[string]string {
 	return data
 }
 
-// SecuritiesSummary is securities summary information.
+// SecuritiesSummary is securities summary information. Ceiling, Floor and RefPrice are nil
+// unless the server sends them (securitiesSummary does not: use GetMasterData).
 type SecuritiesSummary struct {
-	Symbol                string  `json:"symbol"`
-	TradingDate           string  `json:"tradingDate"`
-	PriceChange           float64 `json:"priceChange"`
-	PriceChangePercent    float64 `json:"priceChangePercentage"`
-	OpenPrice             float64 `json:"open"`
-	HighPrice             float64 `json:"high"`
-	LowPrice              float64 `json:"low"`
-	ClosePrice            float64 `json:"close"`
-	AveragePrice          float64 `json:"average"`
-	TotalMatch            int     `json:"totalMatch"`
-	TotalMatchValue       float64 `json:"totalMatchValue"`
-	TotalBuy              int     `json:"totalBuy"`
-	TotalTradeBuy         float64 `json:"totalTradeBuy"`
-	TotalSell             int     `json:"totalSell"`
-	TotalTradeSell        float64 `json:"totalTradeSell"`
-	TotalForeignBuy       int     `json:"totalForeignBuy"`
-	TotalForeignBuyValue  float64 `json:"totalForeignBuyValue"`
-	TotalForeignSell      int     `json:"totalForeignSell"`
-	TotalForeignSellValue float64 `json:"totalForeignSellValue"`
-	RemainForeignRoom     int     `json:"remainForeignRoom"`
-	TotalForeignRoom      int     `json:"totalForeignRoom"`
-	TotalDeal             int     `json:"totalDeal"`
-	TotalDealValue        float64 `json:"totalDealValue"`
-	OpenInterest          float64 `json:"openInterest"`
-	SettlementPrice       float64 `json:"settlementPrice"`
+	Symbol                string   `json:"symbol"`
+	TradingDate           string   `json:"tradingDate"`
+	PriceChange           float64  `json:"priceChange"`
+	PriceChangePercent    float64  `json:"priceChangePercentage"`
+	OpenPrice             float64  `json:"open"`
+	HighPrice             float64  `json:"high"`
+	LowPrice              float64  `json:"low"`
+	ClosePrice            float64  `json:"close"`
+	AveragePrice          float64  `json:"average"`
+	TotalMatch            int      `json:"totalMatch"`
+	TotalMatchValue       float64  `json:"totalMatchValue"`
+	TotalBuy              int      `json:"totalBuy"`
+	TotalTradeBuy         float64  `json:"totalTradeBuy"`
+	TotalSell             int      `json:"totalSell"`
+	TotalTradeSell        float64  `json:"totalTradeSell"`
+	TotalForeignBuy       int      `json:"totalForeignBuy"`
+	TotalForeignBuyValue  float64  `json:"totalForeignBuyValue"`
+	TotalForeignSell      int      `json:"totalForeignSell"`
+	TotalForeignSellValue float64  `json:"totalForeignSellValue"`
+	RemainForeignRoom     int      `json:"remainForeignRoom"`
+	TotalForeignRoom      int      `json:"totalForeignRoom"`
+	TotalDeal             int      `json:"totalDeal"`
+	TotalDealValue        float64  `json:"totalDealValue"`
+	OpenInterest          float64  `json:"openInterest"`
+	SettlementPrice       float64  `json:"settlementPrice"`
+	Ceiling               *float64 `json:"ceiling,omitempty"`
+	Floor                 *float64 `json:"floor,omitempty"`
+	RefPrice              *float64 `json:"refPrice,omitempty"`
 }
 
 func SecuritiesSummaryFromList(data []interface{}) []SecuritiesSummary {
-	var result []SecuritiesSummary
-	for _, item := range data {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
+	result := make([]SecuritiesSummary, 0, len(data))
+	for _, m := range rowMaps(data) {
 		result = append(result, SecuritiesSummary{
 			Symbol:                util.ToStr(m["symbol"]),
 			TradingDate:           util.ToStr(m["tradingDate"]),
@@ -380,13 +421,39 @@ func SecuritiesSummaryFromList(data []interface{}) []SecuritiesSummary {
 			TotalDealValue:        util.ToFloat64(m["totalDealValue"]),
 			OpenInterest:          util.ToFloat64(m["openInterest"]),
 			SettlementPrice:       util.ToFloat64(m["settlementPrice"]),
+			Ceiling:               util.ToOptFloat64(m["ceiling"]),
+			Floor:                 util.ToOptFloat64(m["floor"]),
+			RefPrice:              util.ToOptFloat64(m["refPrice"]),
 		})
 	}
 	return result
 }
 
+// MasterDataRequest is a master data (reference price) request.
+type MasterDataRequest struct {
+	FromDate string
+	ToDate   string
+	Page     int
+	Size     int
+}
+
+// ToMap uses the endpoint's lower-case from/to keys; only set bounds are sent.
+func (r *MasterDataRequest) ToMap() map[string]string {
+	data := map[string]string{}
+	if r.FromDate != "" {
+		data["from"] = r.FromDate
+	}
+	if r.ToDate != "" {
+		data["to"] = r.ToDate
+	}
+	data["pageIndex"] = fmt.Sprintf("%d", r.Page)
+	data["pageSize"] = fmt.Sprintf("%d", r.Size)
+	return data
+}
+
 // MasterData represents ceiling, floor, and reference prices for a symbol on a trading date.
 type MasterData struct {
+	// Board is the matching board, or the raw string for a board this SDK does not know.
 	Board       Board   `json:"board"`
 	Symbol      string  `json:"symbol"`
 	TradingDate string  `json:"tradingDate"`
@@ -396,23 +463,16 @@ type MasterData struct {
 }
 
 func MasterDataFromList(data []interface{}) []MasterData {
-	var result []MasterData
-	for _, item := range data {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		refPrice := util.ToFloat64(m["refPrice"])
-		if refPrice == 0 {
-			refPrice = util.ToFloat64(m["referencePrice"])
-		}
+	result := make([]MasterData, 0, len(data))
+	for _, m := range rowMaps(data) {
+		board, _ := normalizeBoard(m["board"])
 		result = append(result, MasterData{
-			Board:       Board(util.ToStr(m["board"])),
+			Board:       board,
 			Symbol:      util.ToStr(m["symbol"]),
 			TradingDate: util.ToStr(m["tradingDate"]),
 			Ceiling:     util.ToFloat64(m["ceiling"]),
 			Floor:       util.ToFloat64(m["floor"]),
-			RefPrice:    refPrice,
+			RefPrice:    util.ToFloat64(util.Pick(m, "refPrice", "referencePrice")),
 		})
 	}
 	return result

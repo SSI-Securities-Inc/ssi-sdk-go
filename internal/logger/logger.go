@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -26,6 +27,9 @@ var (
 func init() {
 	globalLevel.Store(int32(LevelInfo))
 }
+
+// SetOutput redirects every SDK logger (tests capture what would be printed).
+func SetOutput(w io.Writer) { std.SetOutput(w) }
 
 // SetLevel sets the global log level for all SDK loggers.
 func SetLevel(level Level) {
