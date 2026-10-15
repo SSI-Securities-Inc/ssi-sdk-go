@@ -1,10 +1,9 @@
 package account
 
 import (
-	"encoding/json"
-	"fmt"
-
+	ssi "github.com/SSI-Securities-Inc/ssi-sdk-go/v3"
 	"github.com/SSI-Securities-Inc/ssi-sdk-go/v3/internal/logger"
+	"github.com/SSI-Securities-Inc/ssi-sdk-go/v3/internal/util"
 	"github.com/SSI-Securities-Inc/ssi-sdk-go/v3/transport"
 )
 
@@ -21,21 +20,24 @@ func NewService(rest *transport.RestClient) *Service {
 	return &Service{rest: rest}
 }
 
+// GetAccountInfo lists the accessible trading accounts. The server answers {"code": 204}
+// instead of an empty array when there is nothing to list; that yields an empty list.
 func (s *Service) GetAccountInfo() ([]Account, error) {
 	data, err := s.rest.Get(epAccountInfo, nil, nil)
 	if err != nil {
 		accountLog.Error("Failed to fetch account info for endpoint %s: %v", epAccountInfo, err)
 		return nil, err
 	}
-
-	raw, err := json.Marshal(data["data"])
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal account data: %w", err)
+	if data == nil || util.IsNoContent(data) {
+		return []Account{}, nil
 	}
-
-	var accounts []Account
-	if err := json.Unmarshal(raw, &accounts); err != nil {
-		return nil, fmt.Errorf("failed to parse account list: %w", err)
+	raw, present := data["data"]
+	if !present || raw == nil {
+		return []Account{}, nil
 	}
-	return accounts, nil
+	rows, ok := raw.([]interface{})
+	if !ok {
+		return nil, ssi.NewAPIError("Unexpected response format while listing accounts", "", 0, nil)
+	}
+	return AccountsFromList(rows), nil
 }

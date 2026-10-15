@@ -2,6 +2,8 @@
 
 Go SDK cho nền tảng giao dịch chứng khoán SSI. Hỗ trợ REST API và WebSocket streaming.
 
+Phiên bản 3.3.0. Thay đổi và breaking changes: [CHANGELOG.md](CHANGELOG.md). Danh sách method: [API_METHODS.md](API_METHODS.md).
+
 [![Go Reference](https://pkg.go.dev/badge/github.com/SSI-Securities-Inc/ssi-sdk-go.svg)](https://pkg.go.dev/github.com/SSI-Securities-Inc/ssi-sdk-go)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/SSI-Securities-Inc/ssi-sdk-go?logo=go)](https://github.com/SSI-Securities-Inc/ssi-sdk-go)
 [![Release](https://img.shields.io/github/v/release/SSI-Securities-Inc/ssi-sdk-go)](https://github.com/SSI-Securities-Inc/ssi-sdk-go/releases)
@@ -55,12 +57,23 @@ config.PrivateKey  = "YOUR_PRIVATE_KEY"  // chỉ cần cho Trading
 | `PrivateKey` | `string` | `""` | Private key để ký lệnh giao dịch |
 | `APIURL` | `string` | `"https://api.ssi.com.vn"` | URL REST API |
 | `StreamingURL` | `string` | `"wss://stream.ssi.com.vn/ws/v3"` | URL WebSocket streaming |
-| `Timeout` | `int` | `60` | Timeout request (giây) |
+| `TimeoutMs` | `int` | `60000` | Timeout request (mili-giây). Chỉ `GET` được retry khi timeout; `POST`/`PUT`/`DELETE` (auth, OTP, lệnh) gửi đúng một lần |
 | `MaxRetries` | `int` | `5` | Số lần retry tối đa |
-| `RetryDelay` | `float64` | `2.0` | Delay cơ sở giữa các lần retry (exponential backoff, giây) |
+| `RetryDelayMs` | `int` | `2000` | Delay cơ sở giữa các lần retry (exponential backoff, mili-giây) |
 | `RateLimitPerSecond` | `int` | `10` | Giới hạn request/giây (0 = không giới hạn) |
 | `LogLevel` | `string` | `"INFO"` | Mức log: DEBUG, INFO, WARNING, ERROR |
-| `Proxy` | `string` | `""` | URL proxy HTTP/HTTPS |
+| `Proxy` | `string` | `""` | URL proxy HTTP/HTTPS cho REST. URL sai -> lỗi (không tự chuyển sang kết nối trực tiếp) |
+| `TradingAPIDomain` | `string` | `"https://api.ssi.com.vn"` | Host của REST trading (`/api/v3/trading/*`, `/api/v3/account/*`). Mặc định theo `APIURL` |
+| `TradingWSDomain` | `string` | `"wss://api.ssi.com.vn/ws/v3/trading"` | WebSocket đặt lệnh (gói `experimental`), chỉ `wss://` |
+| `MaxBatchOrders` | `int` | `20` | Số lệnh tối đa mỗi batch (lớn hơn bị từ chối ngay tại SDK) |
+| `UserAgent` | `string` | `""` | User-Agent cho HTTP và payload lệnh |
+| `AutoReconnect` | `bool` | `true` | Tự kết nối lại WebSocket streaming khi bị rớt |
+| `OTPPollIntervalMs` | `int` | `5000` | Mili-giây giữa các lần poll Smart OTP |
+| `OTPPollMaxWaitMs` | `int` | `60000` | Tổng thời gian poll Smart OTP tối đa (mili-giây) |
+
+Giá trị trống hoặc không hợp lệ được thay bằng mặc định; `Config` của bạn không bị sửa. `deviceId` của mọi lệnh là mã máy đọc từ hệ điều hành (không còn `Config.DeviceID`).
+
+> `Config`, `Token`, `OTPResponse`... không in secret khi dùng `%v`/`%+v`/`%#v`. Nếu trước đây token từng bị ghi vào log, hãy thu hồi/rotate token đó.
 
 ---
 
@@ -135,6 +148,8 @@ log.Printf("Access token: %s", token.AccessToken)
 token, err := auth.Authenticate("", "TRANSACTION_ID")
 ```
 
+`Authenticate` chỉ gọi server **một lần**. Nếu Smart OTP chưa được approve, nó trả `*fc.SmartOTPPendingError`; muốn SDK tự poll, dùng `EnsureAuthenticated` (mục 1.3).
+
 ### 1.2. Yêu cầu gửi OTP
 
 ```go
@@ -167,6 +182,12 @@ accessToken, err := auth.EnsureAuthenticated("222222")
 otpResult, _ := auth.RequestOTP()
 // Lấy transactionID từ otpResult["data"]
 accessToken, err := auth.EnsureAuthenticated("", transactionID)
+```
+
+Hành vi: token hết hạn trước 30 giây được coi là đã hết hạn, token không rõ hạn dùng coi như hết hạn; nhiều goroutine cùng refresh chỉ tạo **một** request tới server (single-flight). Khi không thể refresh, SDK xoá token và trả `*fc.ReauthenticationRequiredError` — cần OTP mới. Smart OTP bị từ chối/hết hạn trả `*fc.SmartOTPRejectedError`. Dùng `EnsureAuthenticatedWith(ctx, opts)` (có trên cả `auth.TokenManager` và `*ssi.Auth`) khi cần `context` và tuỳ chỉnh poll.
+
+```go
+otp, err := auth.RequestOTPTyped() // otp.TransactionID chỉ có với Smart OTP
 ```
 
 ### 1.4. Làm mới token
@@ -268,8 +289,25 @@ for _, candle := range ohlc {
 | `GetOHLC15MinuteHistorical(symbol, fromDate, toDate, page, size)` | 15 phút |
 | `GetOHLC1HourHistorical(symbol, fromDate, toDate, page, size)` | 1 giờ |
 | `GetOHLC1DayHistorical(symbol, fromDate, toDate, page, size)` | 1 ngày |
-| `GetOHLC1WeekHistorical(symbol, fromDate, toDate, page, size)` | 1 tuần *(định nghĩa sẵn nhưng API v3 chưa hỗ trợ)* |
-| `GetOHLC1MonthHistorical(symbol, fromDate, toDate, page, size)` | 1 tháng *(định nghĩa sẵn nhưng API v3 chưa hỗ trợ)* |
+| `GetOHLC1WeekHistorical(symbol, fromDate, toDate, page, size)` | 1 tuần *(trả `*fc.ValidationError`: server từ chối 1w, mã 400210)* |
+| `GetOHLC1MonthHistorical(symbol, fromDate, toDate, page, size)` | 1 tháng *(trả `*fc.ValidationError`: server từ chối 1M, mã 400210)* |
+
+Ngày chỉ có `YYYY/MM/DD` được SDK bổ sung thành `00:00:00` / `23:59:59` (server trả 400213 nếu thiếu giờ). Với nến phút/giờ, `to` ở tương lai được cắt về cuối ngày hôm nay. `page`/`size` < 1 bị từ chối ngay tại SDK.
+
+**Lấy toàn bộ nến trong một khoảng (tự duyệt các trang):**
+
+```go
+q := market.OHLCQuery{FromDate: "2026/03/01", ToDate: "2026/03/31", Size: 1000}
+all, err := data.MarketData.GetOHLCAll("SSI", market.TimeframeDay1, q)
+
+// hoặc duyệt từng nến, return false để dừng sớm
+err = data.MarketData.IterOHLC("SSI", market.TimeframeDay1, q, func(c market.OHLCData) bool {
+    fmt.Println(c.TradingDate, c.ClosePrice)
+    return true
+})
+```
+
+`DownloadOHLC1Minute` / `DownloadOHLC1Day` trả `market.ErrNotImplemented` (server chưa có endpoint tải hàng loạt). `GetIndexSummary*`, `GetBoardSummary*`, `GetSecuritiesInfo` trả `nil, nil` khi không có dữ liệu.
 
 ```go
 ohlc, err := data.MarketData.GetOHLC1DayHistorical(
@@ -404,7 +442,13 @@ result, err := t.Trading.PlaceMarketOrder("1234561", "SSI", trading.OrderSideBuy
 result, err := t.Trading.PlaceATOOrder("1234561", "SSI", trading.OrderSideBuy, 100)
 result, err := t.Trading.PlaceATCOrder("1234561", "SSI", trading.OrderSideSell, 100)
 result, err := t.Trading.PlaceOrder("1234561", "SSI", trading.OrderSideBuy, 100, 66000, trading.OrderTypeLO)
+
+// Idempotency key do bạn kiểm soát (tối đa 20 ký tự); bỏ trống thì SDK tự sinh một key riêng cho mỗi lệnh
+result, err := t.Trading.PlaceLimitOrder("1234561", "SSI", trading.OrderSideBuy, 100, 66000,
+    trading.WithClientRequestID("my-order-001"))
 ```
+
+Giá là `float64` và được gửi dạng chuỗi thập phân thường. `LO`/`PLO` với giá `<= 0`, số lượng không dương, hoặc thiếu `PrivateKey` đều bị từ chối ngay tại SDK (`*fc.ValidationError`), không gửi lên server.
 
 ### 5.2. Sửa lệnh
 
@@ -484,7 +528,18 @@ fcoList, err := t.Trading.GetFcoByAccountNo(accountNo, 1, 10)
 
 // 9. Hủy lệnh FCO
 cancelRes, err := t.Trading.CancelFco(gtd.FCOID)
+
+// 10. Lệnh điều kiện có thể yêu cầu mã OTP: truyền qua option
+gtd, err = t.Trading.PlaceFcoGtd(
+    accountNo, "SSI", trading.OrderSideBuy, 100, 25000, 500, fromDate, toDate, trading.WithOTPCode("123456"),
+)
+cancelRes, err = t.Trading.CancelFco(gtd.FCOID, trading.WithOTPCode("123456"))
+
+// 11. Lịch sử chuyển trạng thái của một lệnh FCO
+history, err := t.Trading.GetFcoStatusHistory(gtd.FCOID)
 ```
+
+Khi đặt FCO, ngày phải ở dạng `YYYY/MM/DD HH:MM:SS`, `from <= to` và khoảng tối đa 31 ngày (kiểm tra tại SDK).
 
 | Method | Mô tả |
 |--------|-------|
@@ -551,7 +606,7 @@ s.Streaming.SetOnTrading(func(msg interface{}) {
     case *stream.FCOOrderUpdateMessage:
         fmt.Printf("[FCO ORDER] %s | ProcessStatus: %s\n", m.Symbol, m.ProcessStatus)
     case *stream.PortfolioMessage:
-        fmt.Printf("[PORTFOLIO] %s | Total: %.0f\n", m.AccountNo, m.TotalAsset)
+        fmt.Printf("[PORTFOLIO] %s | Net: %d\n", m.Symbol, m.Net)
     }
 })
 
@@ -560,9 +615,35 @@ s.Streaming.SetOnHeartbeat(func(msg *stream.HeartbeatMessage) {
 })
 ```
 
-**Message types qua `SetOnData`:** `*stream.TradeMessage`, `*stream.IntervalMessage`, `*stream.QuoteMessage`, `*stream.ForeignRoomMessage`, `*stream.MarketStatusMessage`, `*stream.PutMessage`, `*stream.OddLotMessage`.
+**Message types qua `SetOnData`:** `*stream.TradeMessage`, `*stream.IntervalMessage`, `*stream.QuoteMessage`, `*stream.ForeignRoomMessage`, `*stream.MarketStatusMessage`, `*stream.MarketFlagMessage`, `*stream.MarketDataMessage`, `*stream.IndexTickMessage`, `*stream.IndexSummaryMessage`, `*stream.PutMessage`, `*stream.OddLotMessage`. Frame không nhận ra được trả nguyên dạng `map[string]interface{}`.
 
-**Message types qua `SetOnTrading`:** `*stream.OrderStatusMessage`, `*stream.PortfolioMessage`, `*stream.FCOOrderUpdateMessage`.
+**Message types qua `SetOnTrading`:** `*stream.OrderStatusMessage`, `*stream.OrderMatchMessage`, `*stream.PortfolioMessage`, `*stream.FCOOrderUpdateMessage`.
+
+Số liệu tuỳ chọn là con trỏ (`nil` khi server không gửi), ví dụ `TradeMessage.Open`, `PortfolioMessage.MarketPrice`. Giá chữ (ATO/ATC/MP) nằm ở `OrderStatusMessage.PriceText`, `Price` là 0.
+
+**Callback có kiểu riêng** (nhận cùng message với `SetOnData`/`SetOnTrading`, không cần type switch):
+
+| Setter | Message |
+|--------|---------|
+| `SetOnMarketFlag` | `*stream.MarketFlagMessage` (phiên ATO/LO/ATC...) |
+| `SetOnIndexSummary` | `*stream.IndexSummaryMessage` |
+| `SetOnOrder` | `*stream.OrderStatusMessage` (lệnh đổi trạng thái) |
+| `SetOnOrderMatch` | `*stream.OrderMatchMessage` (lệnh khớp) |
+| `SetOnPortfolio` | `*stream.PortfolioMessage` |
+| `SetOnConnection` | `transport.ConnectionEvent` (`State`: connected / reconnected / disconnected / failed) |
+
+```go
+s.Streaming.SetOnOrder(func(m *stream.OrderStatusMessage) { fmt.Println(m.Symbol, m.Status) })
+s.Streaming.SetOnConnection(func(e transport.ConnectionEvent) { log.Println("ws:", e.State, e.ReconnectCount) })
+
+s.Streaming.IsConnected()     // bool
+s.Streaming.ReconnectCount()  // số lần mở lại socket
+s.Streaming.LastError()       // lỗi làm kết nối dừng hẳn (nil khi bình thường)
+```
+
+**Tự kết nối lại:** `Connect()` trả về sau lần kết nối đầu tiên, sau đó SDK giám sát socket: backoff luỹ thừa có giới hạn + jitter, token mới mỗi lần kết nối, kết nối lại chủ động trước khi token hết hạn, tôn trọng frame từ chối `{"code","msg"}` (401/403 refresh một lần; 429 chờ tối thiểu 30 giây), tự subscribe lại, và luôn đóng socket cũ trước khi mở socket mới. Tắt bằng `config.AutoReconnect = false`. Khi `State == "failed"` (ví dụ cần OTP mới) sẽ không kết nối lại.
+
+**Topic được kiểm tra trước khi gửi** (sai -> `*fc.ValidationError`); mã chỉ số/mã chứng khoán được viết hoa; khung interval chỉ nhận `tick`/`1m`/`5m`; yêu cầu subscribe dài được tách thành nhiều frame dưới 4096 byte.
 
 ### 6.2. Subscribe dữ liệu thị trường
 
@@ -575,9 +656,20 @@ s.Streaming.SubscribeSymbolPutThrough([]string{"SSI"}, nil)
 s.Streaming.SubscribeSymbolOddLot([]string{"SSI"}, nil)
 
 import "github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market"
-s.Streaming.SubscribeBoard([]market.Board{market.BoardHOSE, market.BoardHNX}, nil)
-s.Streaming.SubscribeIndex([]string{"VNINDEX", "VN30"}, nil)
+s.Streaming.SubscribeBoard([]market.Board{market.BoardHOSE, market.BoardHNX}, nil) // trade/quote/room.<sàn>@*
+s.Streaming.SubscribeIndex([]string{"VNINDEX", "VN30"}, nil)                       // trade/quote/room.<chỉ số>@*
+
+s.Streaming.SubscribeMarketFlag(nil)                                       // cờ phiên: market.flag
+s.Streaming.SubscribeMarket([]string{"SSI"}, nil)                          // master data (trần/sàn/tham chiếu)
+s.Streaming.SubscribeIndexTrade([]string{"VN30"}, "", nil)                 // tick của chính chỉ số ("1m"/"5m" -> nến)
+s.Streaming.SubscribeIndexSummary([]string{"VN30"}, nil)                   // indexsummary.<code>
+s.Streaming.SubscribeSymbolOhlcv([]string{"SSI"}, market.TimeframeMinute1, nil)
 ```
+
+`SubscribeBoard`/`SubscribeIndex` gửi `trade.<mã>@*` (+ `quote`, `room`): server chỉ rải sàn/rổ chỉ số ra các mã thành phần khi có `@*`.
+Mỗi topic chỉ một mã (hoặc khoảng `A-B`); danh sách `VNM,FPT` trong một topic bị `ValidationError` vì server không tách dấu phẩy.
+
+Có alias dễ đọc hơn: `SubscribeIndexTicks`, `SubscribeMasterData`, `SubscribeSessionFlag`, `SubscribeOrders`, `SubscribeTrades`, `SubscribeQuotes`, `SubscribeForeignRoom`, `SubscribePutThrough`, `SubscribeOddLot`, `SubscribeCandles`, `SubscribeExchangeTrades`, `SubscribeIndexConstituents`, `SubscribePositions` (đều có `Unsubscribe...` tương ứng).
 
 ### 6.3. Unsubscribe
 
@@ -586,24 +678,32 @@ s.Streaming.UnsubscribeSymbol([]string{"SSI"})
 s.Streaming.UnsubscribeSymbolTrade([]string{"SSI"})
 s.Streaming.UnsubscribeBoard([]market.Board{market.BoardHOSE})
 s.Streaming.UnsubscribeIndex([]string{"VNINDEX"})
+s.Streaming.UnsubscribeOrderStatus("1234561")
+s.Streaming.UnsubscribePortfolio("1234561")
+
+subs, err := s.Streaming.ListSubscription(5000) // hỏi server đang subscribe gì (mili-giây)
+left, err := s.Streaming.UnsubscribeAll()                  // bỏ tất cả
 ```
 
 ### 6.4. Subscribe giao dịch (order status & portfolio)
 
 ```go
-s.Streaming.SubscribeOrderStatus("", nil)           // tất cả tài khoản
-s.Streaming.SubscribeOrderStatus("1234561", nil)     // tài khoản cụ thể
-s.Streaming.SubscribeFcoOrderStatus("1234561", nil)  // lệnh điều kiện FCO
+s.Streaming.SubscribeOrderStatus("", nil)           // tất cả tài khoản ("" = "*")
+s.Streaming.SubscribeOrderStatus("1234561", nil)     // tài khoản cụ thể (được kiểm tra định dạng)
 s.Streaming.SubscribePortfolio("", nil)
 ```
+
+Thay đổi của lệnh điều kiện (FCO) đến qua cùng topic `order.<account>` dưới dạng `*stream.FCOOrderUpdateMessage`; không còn `SubscribeFcoOrderStatus`.
 
 ### 6.5. Heartbeat & Wait
 
 ```go
-s.Streaming.Ping()
+s.Streaming.Ping(nil, nil)               // ping một lần
+every := 20000 // mili-giây
+s.Streaming.Ping(nil, &every)            // ping định kỳ (dừng khi Disconnect)
 
 s.Wait(nil)                              // chờ vô thời hạn
-timeout := 30 * time.Second
+timeout := 30000 // mili-giây
 s.Wait(&timeout)                         // chờ 30 giây
 ```
 
@@ -657,7 +757,7 @@ func main() {
     s.Streaming.SubscribeSymbol([]string{"SSI", "HPG"}, nil)
     s.Streaming.SubscribeOrderStatus("", nil)
 
-    timeout := 30 * time.Second
+    timeout := 30000 // mili-giây
     s.Wait(&timeout)
 }
 ```
@@ -673,30 +773,54 @@ func main() {
 | `*fc.APIError` | API trả về lỗi — có thêm `StatusCode`, `ResponseBody` |
 | `*fc.WebSocketError` | Lỗi kết nối hoặc giao tiếp WebSocket |
 | `*fc.ValidationError` | Lỗi validate input |
-| `*fc.RateLimitError` | Vượt quá giới hạn request — có thêm `RetryAfter` |
+| `*fc.RateLimitError` | Vượt quá giới hạn request — có thêm `RetryAfterMs` (mili-giây), `Limit`, `Remaining`, `Reset` (giữ nguyên số của server) |
+| `*fc.SmartOTPPendingError` | Smart OTP chưa được approve (HTTP 202 + 401114); poll lại cùng `transactionId` |
+| `*fc.SmartOTPRejectedError` | Smart OTP bị từ chối/hết hạn (401113/401115/401116) |
+| `*fc.ReauthenticationRequiredError` | Không refresh được; token đã bị xoá, cần OTP mới |
+| `*fc.DuplicateRequestError` | HTTP 409: `clientRequestId`/`batchRequestId` đã dùng. SDK không tự gửi lại với id khác vì lệnh gốc có thể vẫn còn hiệu lực |
+| `*fc.TradingWSError` | Lỗi từ Trading WebSocket thử nghiệm (`Status`, `ErrorCode`, `ServerMessage`) |
+
+Các lỗi con unwrap về lỗi cha, nên `errors.As` hoạt động cho cả hai (ví dụ `SmartOTPPendingError` cũng là `AuthenticationError`).
+
+`APIError.Code` là mã lỗi của server (HTTP status nằm ở `StatusCode`). Thông điệp lỗi không chứa body gốc, URL hay token.
 
 ```go
-import fc "github.com/SSI-Securities-Inc/ssi-sdk-go/v3"
+import (
+    "errors"
+
+    fc "github.com/SSI-Securities-Inc/ssi-sdk-go/v3"
+)
 
 if err != nil {
-    switch e := err.(type) {
-    case *fc.AuthenticationError:
-        log.Println("Cần xác thực lại")
-    case *fc.RateLimitError:
-        if e.RetryAfter != nil {
-            log.Printf("Rate limited, retry sau %.0fs", *e.RetryAfter)
+    var (
+        rl  *fc.RateLimitError
+        re  *fc.ReauthenticationRequiredError
+        dup *fc.DuplicateRequestError
+        api *fc.APIError
+        val *fc.ValidationError
+    )
+    switch {
+    case errors.As(err, &re):
+        log.Println("Cần OTP mới")
+    case errors.As(err, &rl):
+        if rl.RetryAfterMs != nil {
+            log.Printf("Rate limited, retry sau %d ms", *rl.RetryAfterMs)
         } else {
             log.Println("Rate limited")
         }
-    case *fc.APIError:
-        log.Printf("API error %d: %s", e.StatusCode, e.Message)
-    case *fc.ValidationError:
-        log.Printf("Validation: %s", e.Message)
+    case errors.As(err, &dup):
+        log.Println("Request id đã dùng — kiểm tra lệnh trước khi gửi lại")
+    case errors.As(err, &api):
+        log.Printf("API error %d (code %s): %s", api.StatusCode, api.Code, api.Message)
+    case errors.As(err, &val):
+        log.Printf("Validation: %s", val.Message)
     default:
         log.Printf("Unknown error: %v", err)
     }
 }
 ```
+
+Với lệnh: mọi `Place*Order` có idempotency key (`trading.WithClientRequestID("...")`, tự sinh nếu bỏ trống). `POST`/`PUT`/`DELETE` không bao giờ được replay khi gặp `429` hoặc timeout. Giá được gửi dạng chuỗi thập phân thường (không có số mũ); lệnh `LO`/`PLO` với giá `<= 0` bị từ chối ngay tại SDK.
 
 ---
 
@@ -705,9 +829,50 @@ if err != nil {
 ```go
 config.Proxy              = "http://proxy.example.com:8080"
 config.MaxRetries         = 3
-config.RetryDelay         = 1.0
+config.RetryDelayMs       = 1000
 config.RateLimitPerSecond = 5
+config.MaxBatchOrders     = 20
+config.TradingAPIDomain   = "https://api.ssi.com.vn"
 ```
+
+SDK tự theo header rate-limit của server: `X-RateLimit-Limit` hạ tốc độ gửi (không bao giờ vượt `RateLimitPerSecond`), `X-RateLimit-Remaining: 0` nghỉ 1 giây, `429` trên `GET` được chờ (`Retry-After`, tối đa 30 giây, 3 lần) trước khi trả `RateLimitError`.
+
+### Lệnh theo lô (batch)
+
+```go
+res, err := trading.Trading.PlaceBatchOrders([]tr.BatchPlaceOrderItem{
+    {AccountNo: "1234561", Symbol: "VNM", Side: tr.OrderSideBuy, Quantity: 100, Price: 25.5, OrderType: tr.OrderTypeLO},
+})
+res, err = trading.Trading.CancelBatchOrders([]tr.BatchCancelOrderItem{{AccountNo: "1234561", ClientRequestID: "abc"}})
+```
+
+Tối đa `MaxBatchOrders` lệnh; chỉ cần một lệnh sai là cả lô bị từ chối tại SDK; cả body được ký một lần.
+
+### Trading WebSocket (EXPERIMENTAL)
+
+Gói `experimental` gửi lệnh đã ký qua WebSocket (`Config.TradingWSURL()`). Không được `Trading`/`Stream` dùng và API có thể đổi.
+
+```go
+import "github.com/SSI-Securities-Inc/ssi-sdk-go/v3/experimental"
+
+ws, err := experimental.NewClient(config.TradingWSURL(),
+    func() (string, error) { return auth.AccessToken(), nil }, config.PrivateKey)
+if err != nil { log.Fatal(err) }
+defer ws.Close()
+
+svc := experimental.NewService(ws, config)
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+if err := ws.Connect(ctx); err != nil { log.Fatal(err) }
+
+resp, err := svc.PlaceOrder(ctx, "1234561", "VNM", tr.OrderSideBuy, 100, 25.5, tr.OrderTypeLO, "")
+```
+
+- Lệnh làm thay đổi trạng thái cần `PrivateKey`; thiếu key thì lỗi ngay (không gửi).
+- Chữ ký: `WithSignatureEncoding` (`auto` mặc định: base64 trước; bị từ chối 401006/401008/401013 thì gửi lại **một lần** dạng hex và nhớ lại).
+- Lệnh bị timeout **không** được gửi lại. Frame từ chối `{"code","msg"}` sau khi upgrade làm `Connect` lỗi. Khi `remaining == 0` SDK chờ `resetMs` (tối đa 2 giây).
+- Chỉ chấp nhận `wss://`. Token không bao giờ xuất hiện trong thông báo lỗi.
+- Sự kiện (order/portfolio): `svc.SubscribeOrderEvents("1234561")`, nhận qua `ws.SetOnEvent(...)`.
 
 ---
 
@@ -952,7 +1117,7 @@ Package: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market`
 | `Withdrawable` | `float64` | Rút được |
 | `CashSSI` / `CashVSDC` | `float64` | Tiền tại SSI / VSDC |
 | `ValidNonCashSSI` / `ValidNonCashVSDC` | `float64` | Tài sản phi tiền mặt |
-| `CashWithdrawableSSI` / `CashWithdrawableVSDC` | `float64` | Tiền rút được |
+| `WithdrawableSSI` / `WithdrawableVSDC` | `float64` | Tiền rút được tại SSI / VSDC (hàm `CashWithdrawableSSI()`/`CashWithdrawableVSDC()` cũ vẫn còn, deprecated) |
 
 **`portfolio.EquityPosition`** — Vị thế cơ sở
 
@@ -966,6 +1131,7 @@ Package: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market`
 | `BuyingQuantity` / `BoughtQuantity` | `int` | SL đang mua / đã mua |
 | `SellingQuantity` / `SoldQuantity` | `int` | SL đang bán / đã bán |
 | `T1SellQuantity` / `T2SellQuantity` | `int` | SL bán T+1/2 |
+| `T1BuyQuantity` / `T2BuyQuantity` | `int` | SL mua T+1/2 |
 | `CostPrice` | `float64` | Giá vốn |
 | `MortgageQuantity` | `int` | SL cầm cố |
 | `SellableQuantity` | `int` | Số lượng bán được |
@@ -993,8 +1159,9 @@ Package: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market`
 | `Side` | `OrderSide` | Mua/Bán |
 | `OrderType` | `OrderType` | Loại lệnh |
 | `Price` / `AvgPrice` | `float64` | Giá đặt / Giá TB khớp |
+| `PriceText` | `string` | Giá dạng chữ (ATO/ATC/MP...) khi lệnh không có giá số; lúc đó `Price` = 0 |
 | `Quantity` | `int` | SL đặt |
-| `OSQuantity` | `int` | SL chờ khớp |
+| `OSQuantity` | `*int` | SL chờ khớp (`nil`: server không gửi) |
 | `FilledQuantity` | `int` | SL đã khớp |
 | `CancelQuantity` | `int` | SL đã huỷ |
 | `Status` | `OrderStatus` | Trạng thái lệnh |
@@ -1037,8 +1204,8 @@ Package: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market`
 | `Symbol` | `string` | Mã chứng khoán |
 | `MaxBuyQuantity` | `int` | SL mua tối đa |
 | `MaxSellQuantity` | `int` | SL bán tối đa |
-| `MarginRatio` | `string` | Tỷ lệ ký quỹ |
-| `PurchasePower` | `string` | Sức mua |
+| `MarginRatio` | `*string` | Tỷ lệ ký quỹ (`nil` với tài khoản phái sinh) |
+| `PurchasingPower` | `*int` | Sức mua (`nil` với tài khoản phái sinh). `PurchasePower()` cũ còn lại, deprecated |
 
 #### Streaming Messages
 
@@ -1053,6 +1220,23 @@ Package: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market`
 | `Quantity` | `int` | KL khớp |
 | `Side` | `string` | Bên mua/bán (`"B"`, `"S"`, `"U"`) |
 | `TotalVolume` | `int` | Tổng KL |
+| `Open` / `High` / `Low` / `Avg` | `*float64` | Giá mở/cao/thấp/TB (`nil` khi server không gửi) |
+
+**`stream.OrderStatusMessage`** — Trạng thái lệnh (`order.<account>`)
+
+| Trường | Kiểu | Mô tả |
+|--------|------|-------|
+| `AccountNo` / `ClientRequestID` / `OrderID` / `Symbol` | `string` | Định danh lệnh |
+| `Side` / `OrderType` / `Status` | enum | Giá trị lạ từ server được giữ nguyên dạng chuỗi |
+| `Price` / `PriceText` | `float64` / `string` | Giá số / giá chữ (ATO, ATC, MP) |
+| `AvgPrice` / `AvgPriceText` | `float64` / `string` | Giá TB khớp số / chữ |
+| `Quantity` / `OSQuantity` / `FilledQuantity` / `CancelQuantity` | `int` | Số lượng |
+| `InputTime` / `ModifiedTime` | `string` | Thời gian đặt / sửa |
+| `RejectReason` / `ErrorCode` / `ErrorMessage` / `Message` | `string` | Thông tin từ chối/lỗi |
+
+**`stream.OrderMatchMessage`** — Lệnh khớp (`orderMatchEvent`): `MatchPrice`, `MatchQty` và định danh lệnh.
+
+**`stream.PortfolioMessage`** — Vị thế phái sinh (`portfolio.<account>`): `Symbol`, `LongQty`, `ShortQty`, `Net`, `PositionType`; `BidAvgPrice`, `AskAvgPrice`, `TradePrice`, `MarketPrice`, `FloatingPL`, `TradingPL` là `*float64`. `TotalAsset`/`CashBalance`/`StockValue` (con trỏ) server không gửi — deprecated.
 
 **`stream.IntervalMessage`** — Dữ liệu OHLCV theo interval
 
@@ -1164,3 +1348,6 @@ Package: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market`
 | `Trading` | `Account` | `trading.Account` | Thông tin tài khoản |
 | `Trading` | `Portfolio` | `trading.Portfolio` | Số dư, vị thế, sổ lệnh, PPMMR |
 | `Stream` | `Streaming` | `stream.Streaming` | Streaming realtime qua WebSocket |
+| `experimental` | `Service` | `experimental.NewService(client, cfg)` | EXPERIMENTAL: lệnh có chữ ký qua Trading WebSocket, API có thể đổi |
+
+Xem thêm: [CHANGELOG.md](CHANGELOG.md) (thay đổi và breaking changes của 3.3.0), [API_METHODS.md](API_METHODS.md) (danh sách method), [AGENT.md](AGENT.md) (hướng dẫn cho AI agent).

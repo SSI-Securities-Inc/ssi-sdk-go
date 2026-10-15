@@ -32,7 +32,7 @@
 package ssi
 
 import (
-	"time"
+	"context"
 
 	"github.com/SSI-Securities-Inc/ssi-sdk-go/v3"
 	"github.com/SSI-Securities-Inc/ssi-sdk-go/v3/account"
@@ -99,10 +99,39 @@ func (a *Auth) EnsureAuthenticated(otp string, transactionID ...string) (string,
 	return a.TokenManager.EnsureAuthenticated(otp, transactionID...)
 }
 
+// EnsureAuthenticatedWith is EnsureAuthenticated with explicit Smart OTP poll options
+// (EnsureOptions.PollIntervalMs / PollMaxRetries) and a context that cancels the polling.
+func (a *Auth) EnsureAuthenticatedWith(ctx context.Context, opts auth.EnsureOptions) (string, error) {
+	return a.TokenManager.EnsureAuthenticatedWith(ctx, opts)
+}
+
 // AccessToken returns the current bearer token string, or "" if not authenticated.
 func (a *Auth) AccessToken() string {
 	return a.TokenManager.AccessToken()
 }
+
+// Config returns the Config this Auth was built from. Treat it as read-only.
+func (a *Auth) Config() *Config { return a.config }
+
+// Token returns the current token, or nil.
+func (a *Auth) Token() *auth.Token { return a.TokenManager.Token() }
+
+// SetToken installs a token obtained elsewhere (e.g. restored from a secret store).
+func (a *Auth) SetToken(t *auth.Token) { a.TokenManager.SetToken(t) }
+
+// RequestOTPTyped is RequestOTP returning an OTPResponse (TransactionID set for Smart OTP).
+func (a *Auth) RequestOTPTyped() (*auth.OTPResponse, error) {
+	return a.TokenManager.RequestOTPTyped()
+}
+
+// IsTokenExpired is true when the token is missing or within 30 seconds of expiry.
+func (a *Auth) IsTokenExpired() bool { return a.TokenManager.IsTokenExpired() }
+
+// HasRefreshToken reports whether a refresh token is held.
+func (a *Auth) HasRefreshToken() bool { return a.TokenManager.HasRefreshToken() }
+
+// CanRefresh reports whether the token can still be refreshed.
+func (a *Auth) CanRefresh() bool { return a.TokenManager.CanRefresh() }
 
 // Close releases the underlying HTTP connection pool.
 func (a *Auth) Close() {
@@ -181,8 +210,23 @@ type Stream struct {
 
 // NewStream creates a streaming client backed by the given Auth.
 // The current access token is applied to the WebSocket immediately.
+//
+// The socket renews its own token: every (re)connect asks the TokenManager for a valid one
+// (refreshing first when the server refused the old one), and it reconnects ahead of expiry.
 func NewStream(auth *Auth) *Stream {
-	ws := transport.NewWebSocketClient(auth.config)
+	tm := auth.TokenManager
+	provider := func(forceRefresh bool) (string, error) {
+		if forceRefresh && tm.HasRefreshToken() {
+			if _, err := tm.Refresh(); err != nil {
+				return "", err
+			}
+		}
+		return tm.EnsureAuthenticated("")
+	}
+	ws := transport.NewWebSocketClient(auth.config,
+		transport.WithTokenProvider(provider),
+		transport.WithExpiryProvider(func() float64 { return tokenExpiry(tm) }),
+	)
 	if token := auth.AccessToken(); token != "" {
 		ws.SetToken(token)
 	}
@@ -198,10 +242,17 @@ func (s *Stream) Connect() error {
 	return s.wsClient.Connect()
 }
 
-// Disconnect closes the WebSocket connection and releases resources.
+// Disconnect stops the ping loop, closes the WebSocket and stops reconnecting.
 func (s *Stream) Disconnect() {
-	s.Streaming.StopPingLoop()
-	s.wsClient.Disconnect()
+	s.Streaming.Disconnect()
+}
+
+// tokenExpiry is the epoch second when the current credentials stop working (0 if unknown).
+func tokenExpiry(tm *auth.TokenManager) float64 {
+	if t := tm.Token(); t != nil {
+		return float64(t.EffectiveExpiresAt())
+	}
+	return 0
 }
 
 // IsConnected reports whether the WebSocket is currently connected.
@@ -209,10 +260,10 @@ func (s *Stream) IsConnected() bool {
 	return s.wsClient.IsConnected()
 }
 
-// Wait blocks until the WebSocket is disconnected or timeout elapses.
+// Wait blocks until the WebSocket is disconnected or timeoutMs milliseconds elapse.
 // Pass nil to block indefinitely.
-func (s *Stream) Wait(timeout *time.Duration) {
-	s.wsClient.Wait(timeout)
+func (s *Stream) Wait(timeoutMs *int) {
+	s.wsClient.Wait(timeoutMs)
 }
 
 // ── Client (deprecated unified client) ───────────────────────────────────────
@@ -280,7 +331,7 @@ func (c *Client) Connect() error {
 //
 // Deprecated: Use Auth.Close + Stream.Disconnect instead.
 func (c *Client) Disconnect() {
-	c.wsClient.Disconnect()
+	c.Streaming.Disconnect()
 	c.restClient.Close()
 	clientLog.Info("Client disconnected")
 }
