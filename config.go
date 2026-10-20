@@ -18,7 +18,7 @@ type Config struct {
 	// While it stays at the default it follows APIURL. A bare host[:port] gets https://.
 	// Auth and market data always use APIURL.
 	TradingAPIDomain string
-	// TradingWSDomain is the experimental trading WebSocket (default
+	// TradingWSDomain is the trading WebSocket (default
 	// wss://api.ssi.com.vn/ws/v3/trading). A bare host[:port] gets wss:// and /ws/v3/trading.
 	TradingWSDomain string
 	APIKey          string

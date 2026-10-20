@@ -477,3 +477,58 @@ func MasterDataFromList(data []interface{}) []MasterData {
 	}
 	return result
 }
+
+// CorporateActionsRequest is a corporate actions request. A nil Symbol asks for every security.
+type CorporateActionsRequest struct {
+	FromDate string
+	ToDate   string
+	Symbol   *string
+	Language string
+	Page     int
+	Size     int
+}
+
+// ToMap uses the endpoint's query keys; symbol is sent only when set.
+func (r *CorporateActionsRequest) ToMap() map[string]string {
+	data := map[string]string{
+		"from":      r.FromDate,
+		"to":        r.ToDate,
+		"language":  r.Language,
+		"pageIndex": fmt.Sprintf("%d", r.Page),
+		"pageSize":  fmt.Sprintf("%d", r.Size),
+	}
+	if r.Symbol != nil {
+		data["symbol"] = *r.Symbol
+	}
+	return data
+}
+
+// CorporateAction is one corporate action (dividend, bonus shares, rights issue, ...) of a
+// security. Every field is the string the server sends: dates stay YYYY/MM/DD text and Ratio is
+// not parsed (its meaning depends on the event type). A field the server leaves blank (a newly
+// announced event has no ex-right date or ratio yet), null or omits is "".
+type CorporateAction struct {
+	Symbol      string `json:"symbol"`
+	EventTitle  string `json:"eventTitle"`
+	ExrightDate string `json:"exrightDate"`
+	RecordDate  string `json:"recordDate"`
+	IssueDate   string `json:"issueDate"`
+	Exchange    string `json:"exchange"`
+	Ratio       string `json:"ratio"`
+}
+
+func CorporateActionsFromList(data []interface{}) []CorporateAction {
+	result := make([]CorporateAction, 0, len(data))
+	for _, m := range rowMaps(data) {
+		result = append(result, CorporateAction{
+			Symbol:      util.ToStr(m["symbol"]),
+			EventTitle:  util.ToStr(m["eventTitle"]),
+			ExrightDate: util.ToStr(m["exrightDate"]),
+			RecordDate:  util.ToStr(m["recordDate"]),
+			IssueDate:   util.ToStr(m["issueDate"]),
+			Exchange:    util.ToStr(m["exchange"]),
+			Ratio:       util.ToStr(m["ratio"]),
+		})
+	}
+	return result
+}

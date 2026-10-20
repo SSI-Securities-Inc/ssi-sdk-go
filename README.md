@@ -62,7 +62,7 @@ config.PrivateKey  = "YOUR_PRIVATE_KEY"  // chỉ cần cho Trading
 | `LogLevel` | `string` | `"INFO"` | Mức log: DEBUG, INFO, WARNING, ERROR |
 | `Proxy` | `string` | `""` | URL proxy HTTP/HTTPS cho REST. URL sai -> lỗi (không tự chuyển sang kết nối trực tiếp) |
 | `TradingAPIDomain` | `string` | `"https://api.ssi.com.vn"` | Host của REST trading (`/api/v3/trading/*`, `/api/v3/account/*`). Mặc định theo `APIURL` |
-| `TradingWSDomain` | `string` | `"wss://api.ssi.com.vn/ws/v3/trading"` | WebSocket đặt lệnh (gói `experimental`), chỉ `wss://` |
+| `TradingWSDomain` | `string` | `"wss://api.ssi.com.vn/ws/v3/trading"` | WebSocket đặt lệnh (gói `tradingws`), chỉ `wss://` |
 | `MaxBatchOrders` | `int` | `20` | Số lệnh tối đa mỗi batch (lớn hơn bị từ chối ngay tại SDK) |
 | `UserAgent` | `string` | `""` | User-Agent cho HTTP và payload lệnh |
 | `AutoReconnect` | `bool` | `true` | Tự kết nối lại WebSocket streaming khi bị rớt |
@@ -363,6 +363,28 @@ masterHist, err := data.MarketData.GetMasterDataHistorical("2026/08/05", "2026/0
 
 for _, item := range masterData {
     fmt.Printf("%s %s: trần=%.2f sàn=%.2f TC=%.2f\n", item.Board, item.Symbol, item.Ceiling, item.Floor, item.RefPrice)
+}
+```
+
+### 3.7. Sự kiện quyền (Corporate Actions)
+
+Cổ tức, cổ phiếu thưởng, phát hành thêm... SDK tự động phân trang. Khoảng ngày tối đa 5 ngày mỗi lần gọi, ngày định dạng `YYYY/MM/DD`. Mọi trường trả về là chuỗi như server gửi (`Ratio` và các ngày không được parse); trường trống/null là `""`.
+
+```go
+// Hôm nay, tất cả mã
+actions, err := data.MarketData.GetCorporateActions()
+
+// Một mã, tiếng Anh
+actions, err = data.MarketData.GetCorporateActions(
+    market.WithCorporateActionsSymbol("SSI"),
+    market.WithCorporateActionsLanguage("en"), // "vn" (mặc định) hoặc "en"
+)
+
+// Khoảng ngày tự chọn (tối đa 5 ngày)
+hist, err := data.MarketData.GetCorporateActionsHistorical("2026/10/19", "2026/10/24")
+
+for _, a := range hist {
+    fmt.Printf("%s %s: ex-right=%s record=%s ratio=%s\n", a.Symbol, a.EventTitle, a.ExrightDate, a.RecordDate, a.Ratio)
 }
 ```
 
@@ -776,7 +798,7 @@ func main() {
 | `*fc.SmartOTPRejectedError` | Smart OTP bị từ chối/hết hạn (401113/401115/401116) |
 | `*fc.ReauthenticationRequiredError` | Không refresh được; token đã bị xoá, cần OTP mới |
 | `*fc.DuplicateRequestError` | HTTP 409: `clientRequestId`/`batchRequestId` đã dùng. SDK không tự gửi lại với id khác vì lệnh gốc có thể vẫn còn hiệu lực |
-| `*fc.TradingWSError` | Lỗi từ Trading WebSocket thử nghiệm (`Status`, `ErrorCode`, `ServerMessage`) |
+| `*fc.TradingWSError` | Lỗi từ Trading WebSocket (`Status`, `ErrorCode`, `ServerMessage`) |
 
 Các lỗi con unwrap về lỗi cha, nên `errors.As` hoạt động cho cả hai (ví dụ `SmartOTPPendingError` cũng là `AuthenticationError`).
 
@@ -846,19 +868,19 @@ res, err = trading.Trading.CancelBatchOrders([]tr.BatchCancelOrderItem{{AccountN
 
 Tối đa `MaxBatchOrders` lệnh; chỉ cần một lệnh sai là cả lô bị từ chối tại SDK; cả body được ký một lần.
 
-### Trading WebSocket (EXPERIMENTAL)
+### Trading WebSocket
 
-Gói `experimental` gửi lệnh đã ký qua WebSocket (`Config.TradingWSURL()`). Không được `Trading`/`Stream` dùng và API có thể đổi.
+Gói `tradingws` gửi lệnh đã ký qua WebSocket (`Config.TradingWSURL()`). Đây là tính năng opt-in: `Trading`/`Stream` không tự kết nối tới nó.
 
 ```go
-import "github.com/SSI-Securities-Inc/ssi-sdk-go/v3/experimental"
+import "github.com/SSI-Securities-Inc/ssi-sdk-go/v3/tradingws"
 
-ws, err := experimental.NewClient(config.TradingWSURL(),
+ws, err := tradingws.NewClient(config.TradingWSURL(),
     func() (string, error) { return auth.AccessToken(), nil }, config.PrivateKey)
 if err != nil { log.Fatal(err) }
 defer ws.Close()
 
-svc := experimental.NewService(ws, config)
+svc := tradingws.NewService(ws, config)
 ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 defer cancel()
 if err := ws.Connect(ctx); err != nil { log.Fatal(err) }
@@ -1346,6 +1368,6 @@ Package: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/market`
 | `Trading` | `Account` | `trading.Account` | Thông tin tài khoản |
 | `Trading` | `Portfolio` | `trading.Portfolio` | Số dư, vị thế, sổ lệnh, PPMMR |
 | `Stream` | `Streaming` | `stream.Streaming` | Streaming realtime qua WebSocket |
-| `experimental` | `Service` | `experimental.NewService(client, cfg)` | EXPERIMENTAL: lệnh có chữ ký qua Trading WebSocket, API có thể đổi |
+X
 
 Xem thêm: [CHANGELOG.md](CHANGELOG.md) (thay đổi và breaking changes của 3.3.0), [API_METHODS.md](API_METHODS.md) (danh sách method), [AGENT.md](AGENT.md) (hướng dẫn cho AI agent).

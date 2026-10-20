@@ -1,9 +1,8 @@
-// Package experimental is a client for the trading WebSocket (/ws/v3/trading): orders over a
+// Package tradingws is a client for the trading WebSocket (/ws/v3/trading): orders over a
 // socket.
 //
-// EXPERIMENTAL. The server side has not been announced as released, so this package is not wired
-// into the Trading / Stream facades and its API may change without a major version bump. Use it
-// only against an environment you were told supports it.
+// It is an explicit opt-in: the Trading / Stream facades never connect to it. Open it with
+// TradingWS (from an authenticated Auth) or build a Client and a Service yourself.
 //
 // Frame format:
 //
@@ -24,7 +23,7 @@
 //     numbers are never logged and never carried in an error.
 //   - The server accepts the socket first (HTTP 101) and refuses afterwards with a
 //     {"code": 401|403|429|500, "msg": ...} frame, so Connect waits a short grace period for it.
-package experimental
+package tradingws
 
 import (
 	"bytes"

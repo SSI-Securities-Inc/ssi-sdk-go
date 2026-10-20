@@ -8,7 +8,7 @@ import (
 )
 
 // PayloadBuilder builds the validated JSON text of each order command without sending it. The
-// experimental trading WebSocket signs and sends these texts verbatim; the REST Service uses the
+// trading WebSocket (package tradingws) signs and sends these texts verbatim; the REST Service uses the
 // same builders, so both transports enforce identical rules (device id, idempotency key, plain
 // decimal prices, batch and FCO window limits).
 type PayloadBuilder struct{ cfg *ssi.Config }
