@@ -3,7 +3,7 @@
 > Taken from the exported methods in the code. Narrative guides: `README.md` (usage), `AGENT.md` (cheat sheet), `CHANGELOG.md`.
 > Every method returns `error` as its last value (omitted below when it is the only return). Prices are `float64`
 > and are sent as plain decimal strings (`util.FormatPrice`). Calls are blocking; the services take no `context`
-> except the experimental Trading WebSocket.
+> except the Trading WebSocket (`tradingws`).
 
 Clients (package `ssi`, import `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/ssi`): `NewAuth(cfg)`, `NewData(auth)`,
 `NewTrading(auth)`, `NewStream(auth)`, or the one-stop `NewClient(cfg)`. Config comes from `ssisdk.NewConfig(clientID)`.
@@ -49,6 +49,7 @@ Reach it through `auth.TokenManager` (the most used ones are also methods on `*s
 | `GetSecuritiesSummary` / `…Historical` | `(symbol string[, fromDate, toDate string]) ([]SecuritiesSummary, error)` | Summary of a symbol. |
 | `GetSecuritiesSummaryByIndex` / `…Historical` | `(index string[, fromDate, toDate string]) ([]SecuritiesSummary, error)` | Summary of an index's members. |
 | `GetMasterData` / `GetMasterDataHistorical` | `() / (fromDate, toDate string) ([]MasterData, error)` | Ceiling/floor/reference for all symbols. |
+| `GetCorporateActions` / `GetCorporateActionsHistorical` | `(opts ...CorporateActionsOption) / (fromDate, toDate string, opts ...CorporateActionsOption) ([]CorporateAction, error)` | Corporate actions (dividend, bonus, rights issue...), all pages. Today / a range of at most 5 days. Options: `WithCorporateActionsSymbol(symbol)`, `WithCorporateActionsLanguage("vn"\|"en")`. |
 
 ## Account
 
@@ -145,9 +146,9 @@ Callbacks (assign with `SetOn…`):
 | `SetOnPortfolio` | `func(*PortfolioMessage)` | Derivative position updates. |
 | `SetOnConnection` | `func(transport.ConnectionEvent)` | connected / reconnected / disconnected / failed. |
 
-## Trading WebSocket (EXPERIMENTAL)
+## Trading WebSocket
 
-Package `experimental`. `NewClient(rawURL, tokenProvider, privateKey, opts ...Option) (*Client, error)` then `NewService(client, cfg)`.
+Package `tradingws` (import `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/tradingws`). `NewClient(rawURL, tokenProvider, privateKey, opts ...Option) (*Client, error)` then `NewService(client, cfg)`.
 Options: `WithSignatureEncoding`, `WithRequestTimeoutMs`, `WithUserAgent`, `WithHandshakeGraceMs`, `WithRespectRateLimit`,
 `WithMaxRateLimitWaitMs`, `WithPingIntervalMs` (all in milliseconds; `Call.Next(ctx, timeoutMs)`). Every command takes a `context.Context` first.
 

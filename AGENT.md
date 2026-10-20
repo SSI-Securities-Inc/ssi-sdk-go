@@ -1,6 +1,6 @@
 # AGENT.md — AI Agent Integration Guide for ssi-sdk-go
 
-Instructions, patterns and an API cheatsheet for AI coding assistants (Claude, Gemini, Cursor, Copilot, ...) using `ssi-sdk-go` (v3.3.0).
+Instructions, patterns and an API cheatsheet for AI coding assistants (Claude, Gemini, Cursor, Copilot, ...) using `ssi-sdk-go` (v3.3.2).
 Full method list: `API_METHODS.md`. Usage guide (Vietnamese): `README.md`. History and breaking changes: `CHANGELOG.md`.
 
 ---
@@ -9,14 +9,14 @@ Full method list: `API_METHODS.md`. Usage guide (Vietnamese): `README.md`. Histo
 
 `ssi-sdk-go` is a Go SDK for SSI's **FastConnect v3 API**:
 - Authentication & token management (OTP, Smart OTP, refresh, single-flight auto-refresh)
-- Market data (OHLC, indexes, securities info & summary, master data)
+- Market data (OHLC, indexes, securities info & summary, master data, corporate actions)
 - Trading & portfolio (orders, batch orders, FCO conditional orders, balances, positions, PPMMR)
 - Realtime streaming (WebSocket market data & trading events, supervised with auto-reconnect)
-- EXPERIMENTAL Trading WebSocket (`experimental` package)
+- Trading WebSocket (`tradingws` package, explicit opt-in)
 
 ```
 Facade (ssi: Auth / Data / Trading / Stream)
-   └── Services (market, account, portfolio, trading, stream, experimental)
+   └── Services (market, account, portfolio, trading, stream, tradingws)
         └── Transport (transport.RestClient / transport.WebSocketClient)
              └── internal/{signature, redact, device, ratelimit, util}
 ```
@@ -28,7 +28,7 @@ Module `github.com/SSI-Securities-Inc/ssi-sdk-go/v3` (root package `ssisdk`, imp
 2. **Typed enums**: `OrderSide`, `OrderType`, `OrderStatus`, `FCOType`, `FCOOperator`, `FCOStatus` (package `trading`), `Board`, `Timeframe` (package `market`). Use the constants, not raw strings.
 3. **Errors, not panics**: every call returns `error`. Use `errors.As` against the types in section 5. Never compare error strings.
 4. **Optional server values are pointers** (`nil` = the server did not send it). Do not substitute `0`.
-5. **Blocking calls**: services take no `context` (except `experimental`); cancel by closing the client.
+5. **Blocking calls**: services take no `context` (except `tradingws`); cancel by closing the client.
 6. **Do not mutate or share `Config` assumptions**: the SDK works on a copy; blank endpoints fall back to defaults.
 
 ---
@@ -63,7 +63,7 @@ data, trading, stream := ssi.NewData(auth), ssi.NewTrading(auth), ssi.NewStream(
 - Market data does not need an OTP: `auth.Authenticate("")`.
 
 ### Config fields worth knowing
-`APIURL`, `StreamingURL`, `TradingAPIDomain` (REST trading host), `TradingWSDomain` (experimental), `MaxBatchOrders` (20), `UserAgent`, `AutoReconnect` (true), `OTPPollIntervalMs`, `OTPPollMaxWaitMs`, `Proxy` (REST), `RateLimitPerSecond`, `TimeoutMs`, `RetryDelayMs`. Every duration the SDK defines is an integer in **milliseconds** with an `Ms` suffix (`Wait(*int)`, `Ping(.., *int)`, `ListSubscription(int)`, `WithRequestTimeoutMs`, ...). There is **no** `DeviceID`: the order `deviceId` is this machine's id read from the OS.
+`APIURL`, `StreamingURL`, `TradingAPIDomain` (REST trading host), `TradingWSDomain` (trading WebSocket, `tradingws`), `MaxBatchOrders` (20), `UserAgent`, `AutoReconnect` (true), `OTPPollIntervalMs`, `OTPPollMaxWaitMs`, `Proxy` (REST), `RateLimitPerSecond`, `TimeoutMs`, `RetryDelayMs`. Every duration the SDK defines is an integer in **milliseconds** with an `Ms` suffix (`Wait(*int)`, `Ping(.., *int)`, `ListSubscription(int)`, `WithRequestTimeoutMs`, ...). There is **no** `DeviceID`: the order `deviceId` is this machine's id read from the OS.
 
 ---
 
@@ -89,6 +89,7 @@ All methods return `error` last. Prices are `float64`, sent as plain decimal str
 | `GetSecuritiesSummary(symbol)`, `...Historical(symbol, from, to)` | | `[]SecuritiesSummary` | |
 | `GetSecuritiesSummaryByIndex(index)`, `...Historical(index, from, to)` | | `[]SecuritiesSummary` | |
 | `GetMasterData()`, `GetMasterDataHistorical(from, to)` | | `[]MasterData` | Ceiling/floor/reference |
+| `GetCorporateActions(opts...)`, `GetCorporateActionsHistorical(from, to, opts...)` | `WithCorporateActionsSymbol`, `WithCorporateActionsLanguage` | `[]CorporateAction` | All pages; range <= 5 days; fields are strings |
 
 ### 3.2 Account & portfolio (`trading.Account`, `trading.Portfolio`)
 
@@ -149,10 +150,10 @@ FCO options: `trading.WithOTPCode(code)`. Dates: `YYYY/MM/DD HH:MM:SS`, `from <=
 - State: `IsConnected()`, `ReconnectCount()`, `LastError()`; `ListSubscription(timeout)`, `UnsubscribeAll()`.
 - Parsers: `stream.ParseDataMessage(frame)` / `stream.ParseTradingMessage(frame)` take the whole frame.
 
-### 3.6 EXPERIMENTAL Trading WebSocket (`experimental`)
+### 3.6 Trading WebSocket (`tradingws`)
 
-Signed order/FCO commands over `config.TradingWSURL()` (`wss://` only). Not used by `Trading`/`Stream`; the API may change.
-`experimental.NewClient(url, tokenProvider, privateKey, opts...)` + `experimental.NewService(client, cfg)`. Commands take `context.Context`; mutating commands without a key fail closed; a timed-out command is never retried; signature encoding is `auto` (base64, one hex retry on 401006/401008/401013).
+Signed order/FCO commands over `config.TradingWSURL()` (`wss://` only). Not used by `Trading`/`Stream`: you open it explicitly.
+`tradingws.NewClient(url, tokenProvider, privateKey, opts...)` + `tradingws.NewService(client, cfg)`. Commands take `context.Context`; mutating commands without a key fail closed; a timed-out command is never retried; signature encoding is `auto` (base64, one hex retry on 401006/401008/401013).
 
 ---
 

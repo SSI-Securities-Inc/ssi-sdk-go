@@ -1,4 +1,4 @@
-package experimental
+package tradingws
 
 import (
 	"context"
@@ -25,8 +25,6 @@ func (n jsonNumber) MarshalJSON() ([]byte, error) {
 //
 // Defaults come from the Config (request timeout = Config.TimeoutMs or 10000, User-Agent =
 // Config.UserAgent); opts override them. The caller must Close the returned service.
-//
-// EXPERIMENTAL: see the package documentation.
 func TradingWS(ctx context.Context, auth *ssi.Auth, opts ...Option) (*Service, error) {
 	cfg := auth.Config()
 	timeoutMs := cfg.TimeoutMs

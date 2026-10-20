@@ -7,6 +7,33 @@ This release brings the Go SDK to feature parity with `ssi-sdk-python` 3.3.0. Go
 `error` (no exceptions), optional server fields are pointers, and unknown options are caught at compile time
 through typed fields instead of a runtime `TypeError`.
 
+## 3.3.2 - 2026-10-20
+
+### Added
+- Corporate actions (`GET /api/v3/data/corporateActions`) as two `market.Service` methods:
+  `GetCorporateActions(opts ...CorporateActionsOption)` for today and
+  `GetCorporateActionsHistorical(fromDate, toDate string, opts ...CorporateActionsOption)` for a past range (the server
+  allows at most 5 days per request). Options: `WithCorporateActionsSymbol(symbol)` (default: every security) and
+  `WithCorporateActionsLanguage("vn"|"en")` (default `"vn"`). Both fetch every page (`pageSize` 100, by `pagesCount`) and
+  return `[]CorporateAction` (`Symbol`, `EventTitle`, `ExrightDate`, `RecordDate`, `IssueDate`, `Exchange`, `Ratio`, all
+  strings as the server sends them; a null or missing field is `""`). Checked on the client before any call: date format,
+  `from <= to`, 5-day span, symbol, language. Written from the official API doc; not yet run against the live server.
+
+### Changed
+- **BREAKING:** Trading WebSocket is no longer experimental. It is now a normal public package, `tradingws`, with the
+  same names, signatures, defaults and behaviour (`TradingWS`, `NewClient`, `NewService`, `Client`, `Service`,
+  `Response`, `Option`/`With...`, config `TradingWSDomain` / `TradingWSURL()`). It is still an explicit opt-in:
+  `Trading` and `Stream` do not connect to it. `TradingWSError` stays in the root package (`ssisdk`).
+  - Old import: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/experimental`
+  - New import: `github.com/SSI-Securities-Inc/ssi-sdk-go/v3/tradingws`
+  - The old package was removed without an alias or a deprecated re-export, so old imports fail to compile.
+  - Migration:
+    ```go
+    import "github.com/SSI-Securities-Inc/ssi-sdk-go/v3/tradingws"   // was .../v3/experimental
+    svc, err := tradingws.TradingWS(ctx, auth)                       // was experimental.TradingWS(ctx, auth)
+    defer svc.Close()                                                // everything else keeps its name
+    ```
+
 ## 3.3.0 - 2026-10-08
 
 ### Security

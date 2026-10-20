@@ -16,6 +16,11 @@ import (
 
 var marketLog = logger.New("ssi_sdk.services.market")
 
+var (
+	corporateActionsPageSizes = []int{10, 20, 50, 100}
+	corporateActionsLanguages = []string{"vn", "en"}
+)
+
 const (
 	defaultSize = ssi.DefaultSize
 	defaultPage = ssi.DefaultPage
@@ -26,6 +31,12 @@ const (
 	epDataSecuritiesByBoard = "/api/v3/data/securitiesByBoard"
 	epDataSecuritiesSummary = "/api/v3/data/securitiesSummary"
 	epDataMasterData        = "/api/v3/data/masterdata"
+	epDataCorporateActions  = "/api/v3/data/corporateActions"
+
+	// corporateActions: one request spans at most 5 days; pageSize must be one of
+	// corporateActionsPageSizes; language is one of corporateActionsLanguages.
+	corporateActionsMaxDays         = 5
+	corporateActionsDefaultLanguage = "vn"
 
 	weekMonthRejected = "The server does not support the %s timeframe (error 400210); " +
 		"request 1d bars and aggregate them client-side instead"
@@ -638,6 +649,110 @@ func (s *Service) getMasterData(fromDate, toDate string) ([]MasterData, error) {
 			return nil, err
 		}
 		items = append(items, MasterDataFromList(rows)...)
+		if page >= pagesCount(data) {
+			break
+		}
+	}
+	return items, nil
+}
+
+// Corporate actions
+
+// CorporateActionsOption tunes one corporate actions call (symbol, language).
+type CorporateActionsOption func(*corporateActionsOptions)
+
+type corporateActionsOptions struct {
+	symbol   *string
+	language string
+}
+
+// WithCorporateActionsSymbol limits the result to one ticker symbol (alphanumeric, at most 20
+// characters). Without it every security is returned.
+func WithCorporateActionsSymbol(symbol string) CorporateActionsOption {
+	return func(o *corporateActionsOptions) { o.symbol = &symbol }
+}
+
+// WithCorporateActionsLanguage sets the language of the event text: "vn" (default) or "en".
+func WithCorporateActionsLanguage(language string) CorporateActionsOption {
+	return func(o *corporateActionsOptions) { o.language = language }
+}
+
+func corporateActionsOpts(opts []CorporateActionsOption) corporateActionsOptions {
+	o := corporateActionsOptions{language: corporateActionsDefaultLanguage}
+	for _, fn := range opts {
+		fn(&o)
+	}
+	return o
+}
+
+// buildCorporateActionsParams validates the request as the server documents its limits and
+// returns the query params. The language is lower-cased.
+func buildCorporateActionsParams(fromDate, toDate string, symbol *string, language string, page, size int) (map[string]string, error) {
+	if err := ssi.RequireDateRange(fromDate, toDate, false, false, corporateActionsMaxDays); err != nil {
+		return nil, err
+	}
+	if symbol != nil {
+		if err := ssi.RequireSymbol(*symbol, "symbol"); err != nil {
+			return nil, err
+		}
+		if len(*symbol) > 20 {
+			return nil, ssi.NewValidationError(fmt.Sprintf("symbol must be at most 20 characters, got %d", len(*symbol)))
+		}
+	}
+	language = strings.ToLower(strings.TrimSpace(language))
+	if err := ssi.RequireIn(language, corporateActionsLanguages, "language"); err != nil {
+		return nil, err
+	}
+	if err := ssi.RequirePositive(float64(page), "page"); err != nil {
+		return nil, err
+	}
+	validSize := false
+	for _, n := range corporateActionsPageSizes {
+		if n == size {
+			validSize = true
+		}
+	}
+	if !validSize {
+		return nil, ssi.NewValidationError(fmt.Sprintf("size must be one of %v, got %d", corporateActionsPageSizes, size))
+	}
+	return (&CorporateActionsRequest{
+		FromDate: fromDate, ToDate: toDate, Symbol: symbol, Language: language, Page: page, Size: size,
+	}).ToMap(), nil
+}
+
+// GetCorporateActions returns today's corporate actions (dividends, bonus shares, rights
+// issues, ...). The API paginates; every page is fetched and combined. Options:
+// WithCorporateActionsSymbol, WithCorporateActionsLanguage (default "vn").
+func (s *Service) GetCorporateActions(opts ...CorporateActionsOption) ([]CorporateAction, error) {
+	today := util.TodayDateStr()
+	return s.getCorporateActions(today, today, corporateActionsOpts(opts))
+}
+
+// GetCorporateActionsHistorical returns corporate actions in a past date range
+// (YYYY/MM/DD, toDate at most 5 days after fromDate). The API paginates; every page is fetched
+// and combined.
+func (s *Service) GetCorporateActionsHistorical(fromDate, toDate string, opts ...CorporateActionsOption) ([]CorporateAction, error) {
+	return s.getCorporateActions(fromDate, toDate, corporateActionsOpts(opts))
+}
+
+func (s *Service) getCorporateActions(fromDate, toDate string, o corporateActionsOptions) ([]CorporateAction, error) {
+	pageSize := corporateActionsPageSizes[len(corporateActionsPageSizes)-1]
+	var items []CorporateAction
+	for page := defaultPage; ; page++ {
+		params, err := buildCorporateActionsParams(fromDate, toDate, o.symbol, o.language, page, pageSize)
+		if err != nil {
+			return nil, err
+		}
+		data, err := s.rest.Get(epDataCorporateActions, params, nil)
+		if err != nil {
+			marketLog.Error("Error fetching corporate actions: %v", err)
+			return nil, err
+		}
+		rows, err := rowsOf(data, "corporate actions")
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, CorporateActionsFromList(rows)...)
 		if page >= pagesCount(data) {
 			break
 		}

@@ -1,4 +1,4 @@
-package experimental
+package tradingws
 
 import (
 	"context"

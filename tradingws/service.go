@@ -1,4 +1,4 @@
-package experimental
+package tradingws
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/SSI-Securities-Inc/ssi-sdk-go/v3/trading"
 )
 
-// Service is order entry and queries over the trading WebSocket. EXPERIMENTAL.
+// Service is order entry and queries over the trading WebSocket.
 //
 // It builds the same validated payloads as the REST trading.Service (device id, idempotency key,
 // plain decimal prices) and sends them as signed commands. Order methods return the immediate ack

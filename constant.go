@@ -19,7 +19,7 @@ const (
 
 	// DefaultTradingAPIDomain follows APIURL while left at this default.
 	DefaultTradingAPIDomain = DefaultAPIURL
-	// TradingWSPath is the path of the experimental trading WebSocket.
+	// TradingWSPath is the path of the trading WebSocket.
 	TradingWSPath            = "/ws/v3/trading"
 	DefaultTradingWSDomain   = "wss://api.ssi.com.vn" + TradingWSPath
 	DefaultOTPPollIntervalMs = 5000  // milliseconds
